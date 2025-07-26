@@ -1,0 +1,1 @@
+ALTER TABLE "model_issues" ADD COLUMN "estimated_repair_time_minutes" integer;

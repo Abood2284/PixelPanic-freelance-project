@@ -1,0 +1,1 @@
+ALTER TABLE "models" ADD COLUMN "image_url" varchar(1024);
