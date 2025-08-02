@@ -11,12 +11,16 @@ import adminRoutes from "./routes/admin";
 import modelsRoutes from "./routes/models";
 import brandsRoutes from "./routes/brands";
 import servicesRoutes from "./routes/services";
+import authRoutes from "./routes/auth";
 
 export interface Env {
   NODE_ENV: string;
   DATABASE_URL: string;
   CLOUDFLARE_ACCOUNT_ID: string;
   CLOUDFLARE_IMAGES_API_TOKEN: string;
+  MESSAGE_CENTRAL_CUSTOMER_ID: string;
+  MESSAGE_CENTRAL_PASSWORD: string;
+  JWT_SECRET: string;
 }
 
 // Export a function to create a new pool for each request
@@ -35,7 +39,7 @@ declare module "hono" {
 }
 
 // Create Hono app instance with typed environment
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: { userId: string } }>();
 
 // Error handling middleware
 const errorHandler = createMiddleware(async (c, next) => {
@@ -81,7 +85,9 @@ export const injectDB = createMiddleware(async (c, next) => {
 const configureCORS = () => {
   const allowedOrigins = [
     "http://localhost:3000",
-    "https://pixel-panic-web.sayyedabood69.workers.dev",
+    "http://192.168.1.5:3000",
+    "https://pixel-panic-web.pixelpanic53.workers.dev",
+    "https://pixel-panic-worker.pixelpanic53.workers.dev",
   ];
 
   return cors({
@@ -126,6 +132,7 @@ app.route("/api/admin", adminRoutes);
 app.route("/api/models", modelsRoutes);
 app.route("/api/brands", brandsRoutes);
 app.route("/api/services", servicesRoutes);
+app.route("/api/auth", authRoutes);
 
 app.get("/", async (c) => {
   return c.json({ status: 200, message: "Healthy All System Working" });

@@ -52,7 +52,7 @@ export function ModelGrid({
             <div className="flex h-40 flex-col items-center justify-center p-4 transition-all hover:border-pp-orange hover:shadow-lg hover:-translate-y-1 border rounded-lg bg-white cursor-pointer group">
               <div className="h-20 w-20 flex items-center justify-center text-pp-slate bg-slate-200 rounded-md mb-2 overflow-hidden">
                 <img
-                  src="/images/placeholder-phone.webp"
+                  src="/images/models/iphone-15-pro.webp"
                   alt={model.name}
                   className="w-full h-full object-contain"
                   loading="lazy"

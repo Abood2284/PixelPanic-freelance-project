@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { brands, models, issues, modelIssues } from "@repo/db/schema";
 import { sql } from "drizzle-orm";
-import type { Issue } from "@repo/db/schema";
 
 const servicesRoutes = new Hono();
 
@@ -90,7 +89,7 @@ servicesRoutes.get("/", async (c) => {
         id: service.issueId.toString(),
         name: issue ? issue.name : `Service ${service.issueId}`,
         description: issue ? issue.description || "" : "Service description",
-        estimatedRepairTime: service.estimatedRepairTimeMinutes || 30,
+        estimatedRepairTime: 30, // Default repair time in minutes
         pricing: {
           OEM: {
             type: "OEM",

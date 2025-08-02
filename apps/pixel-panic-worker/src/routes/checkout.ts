@@ -1,100 +1,109 @@
-// src/routes/checkout.ts
+// apps/pixel-panic-worker/src/routes/checkout.ts
+
 import { Hono } from "hono";
-import { Env } from "..";
-import { addressSchema } from "@repo/validators";
-const checkoutRoutes = new Hono<{ Bindings: Env }>();
+import { HTTPException } from "hono/http-exception";
+import { Env, createDbPool } from "..";
+import { verifyAuth } from "./auth"; // Import the auth middleware
+import { orders, orderItems, addresses } from "@repo/db/schema"; // Import new schema tables
+import { drizzle } from "drizzle-orm/neon-serverless";
 
-// This replaces the Server Action.
-// It handles the submission of the customer information form.
-checkoutRoutes.post("/address", async (c) => {
-  try {
-    const body = await c.req.json();
+const checkoutRoutes = new Hono<{
+  Bindings: Env;
+  Variables: { userId: string };
+}>();
 
-    // Validate the incoming data against the Zod schema
-    const validationResult = addressSchema.safeParse(body);
+// Apply the authentication middleware to all checkout routes.
+// This ensures that only logged-in users can access these endpoints.
+checkoutRoutes.use("/*", verifyAuth);
 
-    if (!validationResult.success) {
-      return c.json(
-        {
-          status: 400,
-          message: "Invalid form data.",
-          errors: validationResult.error.flatten().fieldErrors,
-        },
-        400
-      );
-    }
-
-    const validatedData = validationResult.data;
-
-    // --- Database Interaction would happen here ---
-    // Example:
-    // await c.req.db.insert(schema.Addresses).values({ ...validatedData, userId: '...' });
-    console.log("Address data received and validated:", validatedData);
-
-    return c.json({
-      status: 200,
-      message: `Address for ${validatedData.fullName} received successfully.`,
-    });
-  } catch (error) {
-    console.error("Error processing checkout address:", error);
-    return c.json({ status: 500, message: "Internal Server Error" }, 500);
-  }
-});
-
+// This is the new, powerful endpoint that creates a complete order.
 checkoutRoutes.post("/create-order", async (c) => {
-  try {
-    const { items, customerInfo, serviceDetails } = await c.req.json();
+  const userId = c.get("userId"); // Get the authenticated user's ID from the middleware
+  const body = await c.req.json();
 
-    // In a real application, you would perform final validation here
-    // against the database (e.g., check item prices, availability).
-    if (!items || items.length === 0 || !customerInfo || !serviceDetails) {
-      return c.json({ status: 400, message: "Missing order details." }, 400);
+  // Extract all the data sent from the frontend
+  const { items, customerInfo, serviceDetails, total } = body;
+
+  // Basic validation
+  if (!items || items.length === 0 || !customerInfo || !serviceDetails) {
+    throw new HTTPException(400, {
+      message: "Missing required order information.",
+    });
+  }
+
+  try {
+    // Create a WebSocket pool for transactions
+    const pool = createDbPool(c.env.DATABASE_URL);
+    const db = drizzle(pool);
+
+    // Use a database transaction to ensure all or nothing is written.
+    // This prevents partial orders if one of the steps fails.
+    const newOrder = await db.transaction(async (tx) => {
+      // 1. Create the main order record
+      const [order] = await tx
+        .insert(orders)
+        .values({
+          userId: userId,
+          totalAmount: total.toString(), // Drizzle numeric type expects a string
+          serviceMode: serviceDetails.serviceMode.toLowerCase(), // 'doorstep' or 'carry_in'
+          timeSlot: serviceDetails.timeSlot,
+          status: "confirmed", // Set initial status
+        })
+        .returning({ id: orders.id });
+
+      if (!order) {
+        // If order creation fails, abort the transaction
+        throw new Error("Failed to create order record.");
+      }
+
+      // 2. Create the associated address record, linking it to the new order
+      await tx.insert(addresses).values({
+        orderId: order.id,
+        ...customerInfo,
+      });
+
+      // 3. Create the order items, linking each to the new order
+      const orderItemsData = items.map((item: any) => ({
+        orderId: order.id,
+        issueName: item.name,
+        modelName: `${item.brand} ${item.model}`, // Assuming brand/model are passed in items
+        grade: item.selectedGrade,
+        priceAtTimeOfOrder: item.price.toString(),
+      }));
+
+      await tx.insert(orderItems).values(orderItemsData);
+
+      return order;
+    });
+
+    // Close the pool after transaction
+    await pool.end();
+
+    if (!newOrder) {
+      throw new HTTPException(500, {
+        message: "Failed to save order details.",
+      });
     }
 
-    // 1. Calculate final total on the backend as the source of truth
-    const subtotal = items.reduce(
-      (sum: number, item: { price: number }) => sum + item.price,
-      0
-    );
-    const gst = subtotal * 0.18; // 18% GST
-    const finalTotal = subtotal + gst;
-
-    const orderData = {
-      ...customerInfo,
-      ...serviceDetails,
-      items,
-      total: finalTotal,
-    };
-
-    // 2. Save the final order to the database with a "PendingPayment" status
-    // const newOrder = await c.req.db.insert(schema.Orders).values(orderData).returning();
-    const orderId = `PP-${Date.now()}`; // Simulate creating an order ID
-
-    console.log("Final order created with ID:", orderId, "Data:", orderData);
-
-    // 3. Return the order ID and amount to the client to initiate payment
-    return c.json({
-      status: 200,
-      message: "Order created successfully. Please proceed to payment.",
-      data: {
-        orderId: orderId,
-        amount: finalTotal,
-      },
-    });
+    // On success, return the new order ID to the frontend
+    return c.json({ orderId: newOrder.id });
   } catch (error) {
     console.error("Error creating order:", error);
-    return c.json({ status: 500, message: "Internal Server Error" }, 500);
+    throw new HTTPException(500, {
+      message: "An unexpected error occurred while creating your order.",
+    });
   }
-});
-
-// Test route for initial setup verification
-checkoutRoutes.post("/test", async (c) => {
-  return c.json({
-    status: 200,
-    data: {
-      message: "Hello World",
-    },
-  });
 });
 
 export default checkoutRoutes;
+
+/*
+Explanation of the New Backend Logic
+Authentication: We apply the verifyAuth middleware to all /api/checkout/* routes. If a user is not logged in, they will get a 401 Unauthorized error and won't be able to proceed.
+
+Single Endpoint: We now have a single /create-order endpoint that handles everything. The old /address endpoint is no longer needed.
+
+Database Transaction (db.transaction): This is the most important part. It groups all our database operations (creating the order, the address, and the items) into a single unit. If any one of these steps fails, the entire transaction is automatically rolled back, preventing corrupt or incomplete data from being saved to your database.
+
+Success: If all steps in the transaction succeed, the endpoint returns the unique ID of the newly created order. The frontend will use this ID to redirect to the confirmation page.
+*/

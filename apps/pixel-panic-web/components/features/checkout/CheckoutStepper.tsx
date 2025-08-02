@@ -3,14 +3,13 @@
 import { cn } from "@/lib/utils";
 
 interface CheckoutStepperProps {
-  currentStep: "info" | "service" | "pay";
+  currentStep: "info" | "service";
 }
 
 export function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
   const steps = [
+    { id: "service", name: "Service" },
     { id: "info", name: "Info" },
-    { id: "service", name: "Service Mode" },
-    { id: "pay", name: "Pay" },
   ];
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
 
@@ -21,7 +20,7 @@ export function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
           <li
             key={step.name}
             className={cn("relative", {
-              "pr-8 sm:pr-20": stepIdx !== steps.length - 1,
+              "pr-16 sm:pr-32": stepIdx !== steps.length - 1,
             })}
           >
             <div
@@ -31,14 +30,14 @@ export function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
               <div
                 className={cn(
                   "h-0.5 w-full",
-                  stepIdx < currentStepIndex ? "bg-pp-orange" : "bg-gray-200"
+                  stepIdx < currentStepIndex ? "bg-orange-500" : "bg-gray-200"
                 )}
               />
             </div>
             <div
               className={cn(
                 "relative flex h-8 w-8 items-center justify-center rounded-full",
-                stepIdx <= currentStepIndex ? "bg-pp-orange" : "bg-gray-200"
+                stepIdx <= currentStepIndex ? "bg-orange-500" : "bg-gray-200"
               )}
             >
               <span
@@ -49,9 +48,11 @@ export function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
                 {stepIdx + 1}
               </span>
             </div>
-            <span className="absolute top-10 w-max -translate-x-1/2 left-1/2 text-xs font-semibold">
-              {step.name}
-            </span>
+            <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center">
+              <span className="text-xs font-semibold whitespace-nowrap">
+                {step.name}
+              </span>
+            </div>
           </li>
         ))}
       </ol>

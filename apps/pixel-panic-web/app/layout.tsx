@@ -4,11 +4,13 @@ import { cn } from "@/lib/utils";
 import "./globals.css";
 import { CartProvider } from "@/context/CartProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { Header } from "@/components/shared/Header";
 import {
   harmonSemiBoldCondensedFont,
   nohemi,
   yeagerOne,
 } from "@/public/fonts/fonts";
+import { AuthModal } from "@/components/shared/AuthModal";
 
 export const metadata: Metadata = {
   title: "Mobile Repair in Mumbai – PixelPanic Doorstep & Store",
@@ -32,7 +34,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
     `}
     >
       <body className={cn("min-h-screen bg-background antialiased")}>
+        <Header />
         <div className="">
+          <AuthModal />
           <CartProvider>{children}</CartProvider>
         </div>
         <Toaster />

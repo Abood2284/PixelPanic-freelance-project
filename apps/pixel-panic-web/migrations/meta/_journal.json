@@ -29,6 +29,20 @@
       "when": 1753534513975,
       "tag": "0003_whole_whiplash",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1754067870390,
+      "tag": "0004_goofy_lilandra",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1754071556062,
+      "tag": "0005_short_patch",
+      "breakpoints": true
     }
   ]
 }

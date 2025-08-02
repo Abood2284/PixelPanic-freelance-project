@@ -2,15 +2,139 @@
 
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 
 import { Env, createDbPool } from "..";
-import { brands, issues, models, modelIssues } from "@repo/db/schema";
+import { brands, issues, models, modelIssues, orders } from "@repo/db/schema";
 import { addPhoneModelSchema, updatePhoneModelSchema } from "@repo/validators";
 import * as schema from "@repo/db/schema";
+import { desc } from "drizzle-orm";
 
 const adminRoutes = new Hono<{ Bindings: Env }>();
+
+/**
+ * GET /api/admin/orders/:id
+ * Fetches the complete details for a single order.
+ */
+adminRoutes.get("/orders/:id", async (c) => {
+  const orderId = parseInt(c.req.param("id"), 10);
+  if (isNaN(orderId)) {
+    throw new HTTPException(400, { message: "Invalid order ID" });
+  }
+
+  try {
+    // Use a relational query to get the order and all its related data in one go.
+    const orderData = await c.req.db.query.orders.findFirst({
+      where: eq(schema.orders.id, orderId),
+      with: {
+        user: true,
+        address: true,
+        orderItems: true,
+      },
+    });
+
+    if (!orderData) {
+      throw new HTTPException(404, { message: "Order not found" });
+    }
+
+    return c.json(orderData);
+  } catch (error) {
+    console.error(`Failed to fetch order ${orderId}:`, error);
+    throw new HTTPException(500, {
+      message: "Could not retrieve order details.",
+    });
+  }
+});
+
+/**
+ * GET /api/admin/orders
+ * Fetches all orders for the main orders page.
+ * NOTE: For a production app with many orders, this should be paginated.
+ */
+adminRoutes.get("/orders", async (c) => {
+  try {
+    const allOrders = await c.req.db.query.orders.findMany({
+      orderBy: [desc(orders.createdAt)],
+      with: {
+        user: {
+          columns: {
+            name: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+    return c.json(allOrders);
+  } catch (error) {
+    console.error("Failed to fetch all orders:", error);
+    throw new HTTPException(500, {
+      message: "Could not retrieve orders.",
+    });
+  }
+});
+
+/**
+ * GET /api/admin/dashboard
+ * Fetches summary statistics and recent orders for the admin dashboard.
+ */
+adminRoutes.get("/dashboard", async (c) => {
+  try {
+    const db = c.req.db;
+
+    // --- 1. Fetch Summary Statistics ---
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const statsQuery = await db
+      .select({
+        monthlyRevenue:
+          sql`SUM(CASE WHEN ${orders.status} = 'completed' THEN ${orders.totalAmount} ELSE 0 END)`.as(
+            "monthly_revenue"
+          ),
+        completedJobs:
+          sql`COUNT(CASE WHEN ${orders.status} = 'completed' THEN 1 END)`.as(
+            "completed_jobs"
+          ),
+        pendingOrders:
+          sql`COUNT(CASE WHEN ${orders.status} IN ('confirmed', 'in_progress') THEN 1 END)`.as(
+            "pending_orders"
+          ),
+      })
+      .from(orders)
+      .where(gte(orders.createdAt, thirtyDaysAgo));
+
+    const summary = {
+      monthlyRevenue: Number(statsQuery[0]?.monthlyRevenue) || 0,
+      completedJobs: Number(statsQuery[0]?.completedJobs) || 0,
+      pendingOrders: Number(statsQuery[0]?.pendingOrders) || 0,
+      // NOTE: Average repair time is a complex metric not yet tracked in the DB.
+      // We will return a static value as a placeholder.
+      averageRepairTimeMinutes: 85,
+    };
+
+    // --- 2. Fetch Recent Orders ---
+    const recentOrders = await db.query.orders.findMany({
+      orderBy: [desc(orders.createdAt)],
+      limit: 10,
+      with: {
+        user: {
+          columns: {
+            name: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+
+    return c.json({ summary, recentOrders });
+  } catch (error) {
+    console.error("Failed to fetch dashboard data:", error);
+    throw new HTTPException(500, {
+      message: "Could not retrieve dashboard data.",
+    });
+  }
+});
 
 /**
  * GET /api/admin/form-data

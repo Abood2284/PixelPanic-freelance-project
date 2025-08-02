@@ -13,14 +13,11 @@ if (typeof globalThis.WebSocket === "undefined") {
 // Export a function to create a new pool for each request
 export function createDbPool() {
   return new Pool({
-    connectionString:
-      "postgresql://neondb_owner:RkB5Xm4QjgET@ep-bitter-resonance-a572y6v7-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require",
+    connectionString: process.env.DATABASE_URL!,
   });
 }
 
 // Keep the HTTP driver for backward compatibility (if needed elsewhere)
-const sql = neon(
-  "postgresql://neondb_owner:RkB5Xm4QjgET@ep-bitter-resonance-a572y6v7-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
-);
+const sql = neon(process.env.DATABASE_URL!);
 
 export const db = drizzle({ client: sql, logger: false, schema: schema });

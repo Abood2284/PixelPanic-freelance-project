@@ -1,3 +1,4 @@
+// apps/pixel-panic-web/app/(admin)/layout.tsx
 import {
   IconBox,
   IconChartBar,

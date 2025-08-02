@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useContext, useReducer, useCallback } from "react";
 
 // --- Type Definitions ---
 type ServiceMode = "Doorstep" | "CarryIn" | null;
@@ -13,6 +13,8 @@ interface CartItem {
   name: string;
   selectedGrade: "oem" | "aftermarket";
   price: number;
+  brand: string;
+  model: string;
   cartId: string;
 }
 
@@ -33,6 +35,7 @@ interface CartContextType extends CartState {
   total: number;
   setServiceMode: (mode: ServiceMode) => void;
   setTimeSlot: (slot: string | null) => void;
+  clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -66,6 +69,8 @@ function cartReducer(state: CartState, action: any): CartState {
       return { ...state, serviceMode: action.payload, timeSlot: null };
     case "SET_TIME_SLOT":
       return { ...state, timeSlot: action.payload };
+    case "CLEAR_CART":
+      return { ...state, items: [], serviceMode: null, timeSlot: null };
     default:
       return state;
   }
@@ -78,32 +83,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     timeSlot: null,
   });
 
-  const addToCart = (item: Omit<CartItem, "cartId">) => {
+  const addToCart = useCallback((item: Omit<CartItem, "cartId">) => {
     dispatch({
       type: "ADD_TO_CART",
       payload: { ...item, cartId: `${item.id}-${Date.now()}` },
     });
-  };
+  }, []);
 
-  const removeFromCart = (cartId: string) => {
+  const removeFromCart = useCallback((cartId: string) => {
     dispatch({ type: "REMOVE_FROM_CART", payload: { cartId } });
-  };
+  }, []);
 
-  const updateGrade = (
-    cartId: string,
-    newGrade: "oem" | "aftermarket",
-    newPrice: number
-  ) => {
-    dispatch({ type: "UPDATE_GRADE", payload: { cartId, newGrade, newPrice } });
-  };
+  const updateGrade = useCallback(
+    (cartId: string, newGrade: "oem" | "aftermarket", newPrice: number) => {
+      dispatch({
+        type: "UPDATE_GRADE",
+        payload: { cartId, newGrade, newPrice },
+      });
+    },
+    []
+  );
 
-  const setServiceMode = (mode: ServiceMode) => {
+  const setServiceMode = useCallback((mode: ServiceMode) => {
     dispatch({ type: "SET_SERVICE_MODE", payload: mode });
-  };
+  }, []);
 
-  const setTimeSlot = (slot: string | null) => {
+  const setTimeSlot = useCallback((slot: string | null) => {
     dispatch({ type: "SET_TIME_SLOT", payload: slot });
-  };
+  }, []);
+
+  const clearCart = useCallback(() => {
+    dispatch({ type: "CLEAR_CART" });
+  }, []);
 
   const total = state.items.reduce((sum, item) => sum + item.price, 0);
 
@@ -117,6 +128,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         total,
         setServiceMode,
         setTimeSlot,
+        clearCart,
       }}
     >
       {children}

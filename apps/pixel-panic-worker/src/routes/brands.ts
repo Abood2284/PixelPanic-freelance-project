@@ -7,6 +7,7 @@ brandsRoutes.get("/", async (c) => {
   const allBrands = await c.req.db.query.brands.findMany({
     orderBy: (b, { asc }) => [asc(b.name)],
   });
+  console.log("[brands] allBrands", allBrands);
   return c.json(allBrands);
 });
 

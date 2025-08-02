@@ -1,4 +1,3 @@
-import { Header } from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -49,7 +48,6 @@ export default async function ModelSelectPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
       <main className="flex-1 bg-slate-50">
         <div className="container py-12 lg:py-16 text-center px-4">
           <div className="text-sm text-pp-slate mb-4">

@@ -1,19 +1,45 @@
+// apps/pixel-panic-web/app/(admin)/dashboard/page.tsx
+
 import {
   IconCurrencyRupee,
   IconTools,
   IconClockHour4,
   IconShoppingCart,
 } from "@tabler/icons-react";
+import { Suspense } from "react";
 import { StatCard } from "../components/stat-card";
+import { OrdersTable } from "../components/orders-table";
+import { TOrderSummary } from "@/types/admin";
 
-export default function DashboardPage() {
-  // We'll use mock data until we build the API endpoint.
-  const summary = {
-    monthlyRevenue: 75350,
-    completedJobs: 125,
-    pendingOrders: 8,
-    averageRepairTimeMinutes: 85,
+interface DashboardData {
+  summary: {
+    monthlyRevenue: number;
+    completedJobs: number;
+    pendingOrders: number;
+    averageRepairTimeMinutes: number;
   };
+  recentOrders: TOrderSummary[];
+}
+
+async function getDashboardData(): Promise<DashboardData> {
+  // On the server, we need to provide the full URL to the API route.
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const response = await fetch(`${apiBase}/api/admin/dashboard`, {
+    // Revalidate data every 5 minutes
+    next: { revalidate: 300 },
+  });
+
+  if (!response.ok) {
+    // This will be caught by the error boundary
+    throw new Error("Failed to fetch dashboard data.");
+  }
+
+  return response.json();
+}
+
+export default async function DashboardPage() {
+  const data = await getDashboardData();
+  const { summary, recentOrders } = data;
 
   return (
     <div className="flex flex-col gap-8">
@@ -24,14 +50,14 @@ export default function DashboardPage() {
       {/* KPI Cards Section */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Monthly Revenue"
+          title="Revenue (Last 30d)"
           value={`₹${summary.monthlyRevenue.toLocaleString("en-IN")}`}
           icon={
             <IconCurrencyRupee className="h-5 w-5 text-slate-500 dark:text-slate-400" />
           }
         />
         <StatCard
-          title="Completed Jobs (Month)"
+          title="Completed Jobs (30d)"
           value={summary.completedJobs.toString()}
           icon={
             <IconTools className="h-5 w-5 text-slate-500 dark:text-slate-400" />
@@ -53,18 +79,20 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Recent Orders Section - To be built next */}
+      {/* Recent Orders Section */}
       <div className="mt-8">
-        <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4">
+        <h2 className="mb-4 text-2xl font-semibold text-slate-800 dark:text-slate-100">
           Recent Orders
         </h2>
-        <div className="p-8 bg-white dark:bg-neutral-900 rounded-lg shadow-sm">
-          {/* Recent Orders Table will go here */}
-          <p className="text-center text-slate-500 dark:text-slate-400">
-            Recent Orders table coming soon...
-          </p>
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-neutral-900">
+          <Suspense fallback={<p>Loading recent orders...</p>}>
+            <OrdersTable orders={recentOrders} />
+          </Suspense>
         </div>
       </div>
     </div>
   );
+}
+function getApiBaseUrl() {
+  throw new Error("Function not implemented.");
 }

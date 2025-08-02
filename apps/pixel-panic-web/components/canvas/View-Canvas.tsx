@@ -2,14 +2,12 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { Environment, Loader, OrbitControls } from "@react-three/drei";
+import { Environment, Loader, OrbitControls, Bounds } from "@react-three/drei";
 import FloatingIphone from "./floating-iphone";
 import type { Group } from "three";
-// No longer need to import RefObject, as we can use React.ForwardedRef for better type inference with forwardRef
 import type { ForwardedRef } from "react";
 
 interface ViewCanvasProps {
-  // CORRECTED TYPE: This now correctly handles the ref created with useRef(null)
   modelRef: ForwardedRef<Group>;
   onLoaded?: () => void;
 }
@@ -18,23 +16,20 @@ export function ViewCanvas({ modelRef, onLoaded }: ViewCanvasProps) {
   return (
     <>
       <Canvas
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: 0,
-          pointerEvents: "auto",
-        }}
-        camera={{ fov: 35 }}
+        camera={{ fov: 35, position: [0, 0, 10] }}
         shadows
         dpr={[1, 1.5]}
         gl={{ antialias: true }}
       >
-        <FloatingIphone ref={modelRef} scale={1.5} onLoaded={onLoaded} />
+        {/* UPDATED: The <Bounds> component automatically fits the camera to the model.
+          This ensures the iPhone is always perfectly framed and large enough,
+          regardless of the screen's aspect ratio. */}
+        <Bounds fit clip observe margin={1.2}>
+          <FloatingIphone ref={modelRef} scale={8} onLoaded={onLoaded} />
+        </Bounds>
         <Environment files="/hdr/lobby.hdr" environmentIntensity={1.2} />
         <OrbitControls
+          makeDefault // Important for Bounds to work correctly
           enablePan={false}
           enableZoom={false}
           minPolarAngle={Math.PI / 4}

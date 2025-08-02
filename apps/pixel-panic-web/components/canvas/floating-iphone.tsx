@@ -4,10 +4,10 @@
 import { forwardRef } from "react";
 import { Float } from "@react-three/drei";
 import { Group } from "three";
-import { Iphone16, type Iphone16Props } from "./iphone-16";
+import { Iphone16 } from "./iphone-16";
 
 type FloatingIphoneProps = {
-  template?: Iphone16Props["template"];
+  template?: "batcave" | "default";
   floatSpeed?: number;
   floatIntensity?: number;
   rotationIntensity?: number;
@@ -26,6 +26,7 @@ const FloatingIphone = forwardRef<Group, FloatingIphoneProps>(
       rotationIntensity = 0.5,
       children,
       onLoaded,
+      scale,
       ...props
     },
     ref
@@ -38,7 +39,7 @@ const FloatingIphone = forwardRef<Group, FloatingIphoneProps>(
           floatIntensity={floatIntensity}
         >
           {children}
-          <Iphone16 template={template} onLoaded={onLoaded} />
+          <Iphone16 onLoaded={onLoaded} scale={scale} />
         </Float>
       </group>
     );

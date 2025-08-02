@@ -1,3 +1,4 @@
+// apps/pixel-panic-web/app/checkout/service-mode/page.tsx
 "use client";
 
 import * as React from "react";
@@ -5,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartProvider";
 import { cn } from "@/lib/utils";
 
-import { Header } from "@/components/shared/Header";
 import { CheckoutStepper } from "@/components/features/checkout/CheckoutStepper";
 import {
   Card,
@@ -37,7 +37,6 @@ export default function ServiceModePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <Header />
       <main className="flex-1 py-12 lg:py-16">
         <div className="container max-w-4xl">
           <div className="flex justify-center mb-16">
@@ -47,7 +46,7 @@ export default function ServiceModePage() {
             Choose Service Mode
           </h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-12">
             {/* Doorstep Repair Card */}
             <Card
               className={cn(
@@ -109,9 +108,9 @@ export default function ServiceModePage() {
             <Button
               size="lg"
               disabled={!canProceed}
-              onClick={() => router.push("/checkout/payment")}
+              onClick={() => router.push("/checkout")}
             >
-              Continue to Payment
+              Continue to Customer Info
             </Button>
           </div>
         </div>
