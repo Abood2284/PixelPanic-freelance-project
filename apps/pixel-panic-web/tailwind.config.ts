@@ -16,12 +16,11 @@ const config = {
         "2xl": "1400px",
       },
     },
-    fontFamily: {
-      harmonSemiBoldCondensed: ["var(--harmon-semi-bold-condensed-font)"],
-      nohemi: ["var(--nohemi-font)"],
-      yeager: ["var(--yeager-one-font)"],
-    },
     extend: {
+      fontFamily: {
+        yeager: [`var(--yeager-one-font)`, "yeager-one"],
+        "pt-serif": [`var(--pt-serif-font)`, "pt-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

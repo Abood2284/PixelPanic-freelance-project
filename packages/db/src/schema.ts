@@ -22,7 +22,11 @@ import type { AdapterAccountType } from "next-auth/adapters";
  * - 'admin': Can access the admin dashboard.
  * - 'customer': A regular user who books repairs.
  */
-export const userRoleEnum = pgEnum("user_role", ["admin", "customer"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "admin",
+  "customer",
+  "technician",
+]);
 
 export const orderStatusEnum = pgEnum("order_status", [
   "pending_payment",
@@ -33,6 +37,18 @@ export const orderStatusEnum = pgEnum("order_status", [
 ]);
 
 export const serviceModeEnum = pgEnum("service_mode", ["doorstep", "carry_in"]);
+
+export const couponTypeEnum = pgEnum("coupon_type", [
+  "percentage",
+  "fixed_amount",
+  "service_upgrade",
+]);
+
+export const couponStatusEnum = pgEnum("coupon_status", [
+  "active",
+  "inactive",
+  "expired",
+]);
 
 // export const partGradeEnum = pgEnum("part_grade", ["oem", "aftermarket"]);
 
@@ -77,13 +93,27 @@ export const users = pgTable("user", {
  */
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
+  orderNumber: varchar("order_number", { length: 20 }).unique().notNull(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  technicianId: text("technician_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
   status: orderStatusEnum("status").default("pending_payment").notNull(),
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
   serviceMode: serviceModeEnum("service_mode").notNull(),
   timeSlot: text("time_slot"), // Nullable, only for 'doorstep'
+  technicianNotes: text("technician_notes"),
+  completionOtp: varchar("completion_otp", { length: 12 }),
+  completionOtpExpiresAt: timestamp("completion_otp_expires_at"),
+  appliedCouponId: integer("applied_coupon_id").references(() => coupons.id, {
+    onDelete: "set null",
+  }),
+  discountAmount: numeric("discount_amount", {
+    precision: 10,
+    scale: 2,
+  }).default("0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -122,10 +152,24 @@ export const addresses = pgTable("addresses", {
     .unique(),
   fullName: varchar("full_name", { length: 256 }).notNull(),
   phoneNumber: varchar("phone_number", { length: 32 }).notNull(),
-  email: varchar("email", { length: 256 }),
-  pincode: varchar("pincode", { length: 16 }).notNull(),
+  email: varchar("email", { length: 256 }).notNull(),
+  alternatePhoneNumber: varchar("alternate_phone_number", { length: 32 })
+    .notNull()
+    .default(""),
   flatAndStreet: varchar("flat_and_street", { length: 512 }).notNull(),
-  landmark: varchar("landmark", { length: 256 }),
+  landmark: varchar("landmark", { length: 256 }).notNull(),
+});
+
+/**
+ * Photos captured for an order (e.g., job evidence). Stored as object storage URLs.
+ */
+export const orderPhotos = pgTable("order_photos", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  url: varchar("url", { length: 1024 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 /**
  * A master list of phone manufacturers we service (e.g., Apple, Samsung).
@@ -134,6 +178,7 @@ export const addresses = pgTable("addresses", {
 export const brands = pgTable("brands", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 256 }).notNull().unique(),
+  logoUrl: varchar("logo_url", { length: 1024 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -189,8 +234,8 @@ export const modelIssues = pgTable(
     issueId: integer("issue_id")
       .notNull()
       .references(() => issues.id, { onDelete: "cascade" }),
-    priceOriginal: numeric("price_original", { precision: 10, scale: 2 }),
-    priceAftermarketTier1: numeric("price_aftermarket_tier1", {
+    originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
+    aftermarketPrice: numeric("aftermarket_price", {
       precision: 10,
       scale: 2,
     }),
@@ -205,12 +250,140 @@ export const modelIssues = pgTable(
 );
 
 // ============================================================================
+// TECHNICIAN TABLES
+// ============================================================================
+
+/**
+ * Defines the status a technician can have within the system.
+ */
+export const technicianStatusEnum = pgEnum("technician_status", [
+  "active",
+  "on_leave",
+  "inactive",
+]);
+
+/**
+ * The technicians table. Links to users table and tracks technician status.
+ */
+export const technicians = pgTable("technicians", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  status: technicianStatusEnum("status").default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/**
+ * Invitation-based onboarding for vetted technicians.
+ * Stores pending invitations with tokens for secure access.
+ */
+export const technicianInvites = pgTable("technician_invites", {
+  id: serial("id").primaryKey(),
+  phoneNumber: varchar("phone_number", { length: 32 }).notNull(),
+  name: varchar("name", { length: 256 }),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdByAdminId: text("created_by_admin_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================================================
+// CONTACT MESSAGES TABLE
+// ============================================================================
+
+/**
+ * Stores contact messages from users who need other repair services
+ */
+export const contactMessages = pgTable("contact_messages", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 256 }).notNull(),
+  email: varchar("email", { length: 256 }).notNull(),
+  mobile: varchar("mobile", { length: 32 }).notNull(),
+  message: text("message").notNull(),
+  status: varchar("status", { length: 32 }).default("pending").notNull(), // pending, responded, closed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================================
+// COUPON TABLES
+// ============================================================================
+
+/**
+ * The main coupons table. Stores all coupon information including
+ * discount type, value, usage limits, and validity periods.
+ */
+export const coupons = pgTable("coupons", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  name: varchar("name", { length: 256 }).notNull(),
+  description: text("description"),
+  type: couponTypeEnum("type").notNull(),
+  value: numeric("value", { precision: 10, scale: 2 }).notNull(), // percentage or fixed amount
+  minimumOrderAmount: numeric("minimum_order_amount", {
+    precision: 10,
+    scale: 2,
+  }).default("0"),
+  maximumDiscount: numeric("maximum_discount", { precision: 10, scale: 2 }), // cap for percentage discounts
+  totalUsageLimit: integer("total_usage_limit"), // null = unlimited
+  perUserUsageLimit: integer("per_user_usage_limit").default(1),
+  validFrom: timestamp("valid_from").notNull(),
+  validUntil: timestamp("valid_until").notNull(),
+  status: couponStatusEnum("status").default("active").notNull(),
+  applicableServiceModes: text("applicable_service_modes").array(), // ['doorstep', 'carry_in'] or null for all
+  applicableBrandIds: integer("applicable_brand_ids").array(), // specific brands or null for all
+  applicableModelIds: integer("applicable_model_ids").array(), // specific models or null for all
+  createdByAdminId: text("created_by_admin_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Tracks coupon usage by users. Links coupons to orders
+ * and tracks when and how much discount was applied.
+ */
+export const couponUsage = pgTable("coupon_usage", {
+  id: serial("id").primaryKey(),
+  couponId: integer("coupon_id")
+    .notNull()
+    .references(() => coupons.id, { onDelete: "cascade" }),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  discountAmount: numeric("discount_amount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
+  orderAmountBeforeDiscount: numeric("order_amount_before_discount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
+  orderAmountAfterDiscount: numeric("order_amount_after_discount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
+  usedAt: timestamp("used_at").defaultNow().notNull(),
+});
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
 
-// A user can have many orders.
+// A user can have many orders and can be a technician.
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
+  technicians: many(technicians),
+  coupons: many(coupons), // coupons created by admin
+  couponUsage: many(couponUsage), // coupons used by user
 }));
 
 // An order belongs to one user, has many items, and has one address.
@@ -219,10 +392,20 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     fields: [orders.userId],
     references: [users.id],
   }),
+  technician: one(users, {
+    fields: [orders.technicianId],
+    references: [users.id],
+  }),
   orderItems: many(orderItems),
   address: one(addresses, {
     fields: [orders.id],
     references: [addresses.orderId],
+  }),
+  photos: many(orderPhotos),
+  couponUsage: many(couponUsage),
+  appliedCoupon: one(coupons, {
+    fields: [orders.appliedCouponId],
+    references: [coupons.id],
   }),
 }));
 
@@ -239,5 +422,57 @@ export const addressesRelations = relations(addresses, ({ one }) => ({
   order: one(orders, {
     fields: [addresses.orderId],
     references: [orders.id],
+  }),
+}));
+
+// Order photo belongs to one order.
+export const orderPhotosRelations = relations(orderPhotos, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderPhotos.orderId],
+    references: [orders.id],
+  }),
+}));
+
+// Technician belongs to one user.
+export const techniciansRelations = relations(technicians, ({ one }) => ({
+  user: one(users, {
+    fields: [technicians.userId],
+    references: [users.id],
+  }),
+}));
+
+// Technician invite belongs to one admin user (who created it).
+export const technicianInvitesRelations = relations(
+  technicianInvites,
+  ({ one }) => ({
+    createdByAdmin: one(users, {
+      fields: [technicianInvites.createdByAdminId],
+      references: [users.id],
+    }),
+  })
+);
+
+// Coupon belongs to one admin user (who created it).
+export const couponsRelations = relations(coupons, ({ one, many }) => ({
+  createdByAdmin: one(users, {
+    fields: [coupons.createdByAdminId],
+    references: [users.id],
+  }),
+  usage: many(couponUsage),
+}));
+
+// Coupon usage belongs to one coupon, one order, and one user.
+export const couponUsageRelations = relations(couponUsage, ({ one }) => ({
+  coupon: one(coupons, {
+    fields: [couponUsage.couponId],
+    references: [coupons.id],
+  }),
+  order: one(orders, {
+    fields: [couponUsage.orderId],
+    references: [orders.id],
+  }),
+  user: one(users, {
+    fields: [couponUsage.userId],
+    references: [users.id],
   }),
 }));

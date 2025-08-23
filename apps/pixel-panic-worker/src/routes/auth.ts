@@ -16,66 +16,65 @@ const authRoutes = new Hono<{ Bindings: Env; Variables: { userId: string } }>();
 
 // --- NEW: JWT Verification Middleware ---
 export const verifyAuth = createMiddleware(async (c, next) => {
-  console.log("--- Running verifyAuth Middleware ---");
+  const req = c.req;
+  const url = new URL(req.url);
+  const origin = req.header("origin") || "<no-origin>";
+  const method = req.method;
+  const path = url.pathname;
+  console.log(`[AUTH] verifyAuth start`, { method, path, origin });
+
   const token = getCookie(c, "auth_token");
   if (!token) {
-    console.error("[AUTH ERROR] Cookie 'auth_token' not found.");
+    const cookieHeader = req.header("cookie") || "<no-cookie-header>";
+    console.error("[AUTH] Missing auth_token cookie", {
+      method,
+      path,
+      origin,
+      cookieHeaderLength: cookieHeader.length,
+    });
     throw new HTTPException(401, { message: "Unauthorized" });
   }
 
-  console.log("[AUTH INFO] Found 'auth_token' cookie.");
+  console.log("[AUTH] Found auth_token cookie");
 
   try {
     const jwtSecret = c.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error(
-        "[AUTH ERROR] JWT_SECRET is not set in environment variables."
-      );
-      throw new Error("JWT_SECRET is not configured.");
-    }
+    if (!jwtSecret) throw new Error("JWT_SECRET is not configured.");
 
     const decoded = await verify(token, jwtSecret, "HS256");
 
-    if (!decoded || !decoded.sub) {
-      console.error(
-        "[AUTH ERROR] JWT payload is invalid or missing the 'sub' (subject) claim.",
-        decoded
-      );
+    if (!decoded || !decoded.sub)
       throw new HTTPException(401, {
         message: "Unauthorized: Invalid token payload.",
       });
-    }
 
-    console.log(
-      "[AUTH SUCCESS] Token verified successfully for user:",
-      decoded.sub
-    );
+    console.log("[AUTH] JWT verified", { userId: decoded.sub });
     c.set("userId", decoded.sub);
     await next();
   } catch (error) {
-    console.error("[AUTH ERROR] Token verification failed:", error);
+    console.error("[AUTH] Token verification failed", {
+      method,
+      path,
+      origin,
+      error: String(error),
+    });
     throw new HTTPException(401, { message: "Invalid token" });
   }
 });
 
 // --- NEW: Endpoint to get the current user's session ---
 authRoutes.get("/me", verifyAuth, async (c) => {
-  console.log("[/me HANDLER] Handler started.");
   const userId = c.get("userId");
-  console.log("[/me HANDLER] Retrieved userId from context:", userId);
+  const url = new URL(c.req.url);
+  console.log("[AUTH] /me", { userId, path: url.pathname });
 
-  if (!userId) {
-    // This will tell us if the context variable is being lost
-    console.error(
-      "[/me HANDLER] CRITICAL: userId not found in Hono context after middleware success."
-    );
+  if (!userId)
     throw new HTTPException(500, { message: "Session context error." });
-  }
   const user = await c.req.db.query.users.findFirst({
     where: eq(users.id, userId),
     columns: { id: true, name: true, phoneNumber: true, role: true },
   });
-  console.log("[/me HANDLER] Database query result for user:", user);
+  console.log("[AUTH] /me db result", { found: !!user });
 
   if (!user) {
     throw new HTTPException(404, { message: "User not found" });
@@ -149,10 +148,13 @@ authRoutes.post("/verify-otp", async (c) => {
   const token = await sign(payload, c.env.JWT_SECRET, "HS256");
 
   // Set the JWT in a secure, httpOnly cookie
+  // In production, we use SameSite=None to allow cross-site cookie on workers.dev / custom domain
+  // Ensure 'secure' is true with SameSite=None per browser requirements
   setCookie(c, "auth_token", token, {
     httpOnly: true,
     secure: c.env.NODE_ENV === "production",
-    sameSite: "Lax",
+    sameSite: c.env.NODE_ENV === "production" ? "None" : "Lax",
+    domain: c.env.AUTH_COOKIE_DOMAIN || undefined,
     path: "/",
     maxAge: 604800, // 7 days in seconds
   });

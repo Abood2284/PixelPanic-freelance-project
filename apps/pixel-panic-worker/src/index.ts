@@ -1,6 +1,6 @@
 // apps/pixel-panic-worker/src/index.ts
 import { neon, Pool } from "@neondatabase/serverless";
-import * as schema from "@repo/db/schema";
+import * as schema from "@repo/db/index";
 import { NeonHttpDatabase, drizzle } from "drizzle-orm/neon-http";
 import { ExecutionContext, Hono } from "hono";
 import { cors } from "hono/cors";
@@ -12,6 +12,9 @@ import modelsRoutes from "./routes/models";
 import brandsRoutes from "./routes/brands";
 import servicesRoutes from "./routes/services";
 import authRoutes from "./routes/auth";
+import techniciansRoutes from "./routes/technicians";
+import ordersRoutes from "./routes/orders";
+import contactRoutes from "./routes/contact";
 
 export interface Env {
   NODE_ENV: string;
@@ -21,6 +24,11 @@ export interface Env {
   MESSAGE_CENTRAL_CUSTOMER_ID: string;
   MESSAGE_CENTRAL_PASSWORD: string;
   JWT_SECRET: string;
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
+  CLOUDINARY_UPLOAD_PRESET: string;
+  AUTH_COOKIE_DOMAIN?: string;
 }
 
 // Export a function to create a new pool for each request
@@ -86,8 +94,11 @@ const configureCORS = () => {
   const allowedOrigins = [
     "http://localhost:3000",
     "http://192.168.1.5:3000",
-    "https://pixel-panic-web.pixelpanic53.workers.dev",
+    "http://192.168.1.8:3000",
+    "https://pixelpanic.co",
+    "https://www.pixelpanic.co",
     "https://pixel-panic-worker.pixelpanic53.workers.dev",
+    "https://pixel-panic-web.pixelpanic53.workers.dev",
   ];
 
   return cors({
@@ -115,7 +126,14 @@ const configureCORS = () => {
 
 // Apply CORS middleware
 app.use("*", async (c, next) => {
-  console.log(`[DEBUG] Applying CORS middleware for: ${c.req.url}`);
+  const req = c.req;
+  const url = new URL(req.url);
+  const origin = req.header("origin") || "<no-origin>";
+  console.log("[CORS] applying", {
+    method: req.method,
+    path: url.pathname,
+    origin,
+  });
   const corsMiddleware = configureCORS();
   return corsMiddleware(c, next);
 });
@@ -133,6 +151,9 @@ app.route("/api/models", modelsRoutes);
 app.route("/api/brands", brandsRoutes);
 app.route("/api/services", servicesRoutes);
 app.route("/api/auth", authRoutes);
+app.route("/api/technicians", techniciansRoutes);
+app.route("/api/orders", ordersRoutes);
+app.route("/api/contact", contactRoutes);
 
 app.get("/", async (c) => {
   return c.json({ status: 200, message: "Healthy All System Working" });

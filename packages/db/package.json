@@ -2,7 +2,8 @@
     "name": "@repo/db",
     "type": "module",
     "exports": {
-        "./schema": "./src/schema.ts"
+        "./schema": "./src/schema.ts",
+        "./index": "./src/index.ts"
     },
     "devDependencies": {
         "@repo/typescript-config": "workspace:*",

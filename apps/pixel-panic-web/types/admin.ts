@@ -1,5 +1,6 @@
 export type TOrderSummary = {
   id: number;
+  orderNumber: string;
   status:
     | "pending_payment"
     | "confirmed"
@@ -16,6 +17,7 @@ export type TOrderSummary = {
 
 export type TOrderDetail = {
   id: number;
+  orderNumber: string;
   status:
     | "pending_payment"
     | "confirmed"
@@ -92,4 +94,92 @@ export type TTechnicianDetail = TTechnicianSummary & {
     issue: string;
     date: string;
   }[];
+};
+
+// ============================================================================
+// COUPON TYPES
+// ============================================================================
+
+export type TCouponType = "percentage" | "fixed_amount" | "service_upgrade";
+export type TCouponStatus = "active" | "inactive" | "expired";
+export type TServiceMode = "doorstep" | "carry_in";
+
+export type TCouponSummary = {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  type: TCouponType;
+  value: string; // numeric as string
+  minimumOrderAmount: string;
+  maximumDiscount: string | null;
+  totalUsageLimit: number | null;
+  perUserUsageLimit: number;
+  validFrom: string;
+  validUntil: string;
+  status: TCouponStatus;
+  applicableServiceModes: TServiceMode[] | null;
+  applicableBrandIds: number[] | null;
+  applicableModelIds: number[] | null;
+  totalUsageCount: number;
+  totalDiscountGiven: string;
+  createdAt: string;
+  createdByAdmin: {
+    name: string | null;
+    phoneNumber: string;
+  };
+};
+
+export type TCouponDetail = TCouponSummary & {
+  usageHistory: {
+    id: number;
+    orderId: number;
+    userId: string;
+    discountAmount: string;
+    orderAmountBeforeDiscount: string;
+    orderAmountAfterDiscount: string;
+    usedAt: string;
+    user: {
+      name: string | null;
+      phoneNumber: string;
+    };
+    order: {
+      status: string;
+      serviceMode: TServiceMode;
+    };
+  }[];
+};
+
+export type TCouponCreateInput = {
+  code: string;
+  name: string;
+  description?: string;
+  type: TCouponType;
+  value: number;
+  minimumOrderAmount?: number;
+  maximumDiscount?: number;
+  totalUsageLimit?: number;
+  perUserUsageLimit?: number;
+  validFrom: string;
+  validUntil: string;
+  applicableServiceModes?: TServiceMode[];
+  applicableBrandIds?: number[];
+  applicableModelIds?: number[];
+};
+
+export type TCouponUpdateInput = Partial<TCouponCreateInput> & {
+  status?: TCouponStatus;
+};
+
+export type TCouponUsageStats = {
+  totalCoupons: number;
+  activeCoupons: number;
+  totalUsage: number;
+  totalDiscountGiven: string;
+  averageDiscountPerOrder: string;
+  mostUsedCoupon: {
+    code: string;
+    usageCount: number;
+    totalDiscount: string;
+  } | null;
 };

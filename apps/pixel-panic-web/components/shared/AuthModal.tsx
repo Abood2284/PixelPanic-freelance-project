@@ -1,7 +1,7 @@
 // apps/pixel-panic-web/components/modals/AuthModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthModal } from "@/hooks/use-auth-modal";
 import {
   Dialog,
@@ -30,21 +30,48 @@ export function AuthModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+  // Auto-fetch OTP functionality using Web OTP API
+  useEffect(() => {
+    if (step === 2) {
+      const handleWebOTP = () => {
+        // Check if Web OTP API is supported
+        if ("OTPCredential" in window) {
+          // @ts-ignore - Web OTP API is experimental
+          navigator.credentials
+            .get({
+              // @ts-ignore - Web OTP API is experimental
+              otp: { transport: ["sms"] },
+            })
+            .then((credential: any) => {
+              if (credential && credential.code) {
+                setOtp(credential.code);
+              }
+            })
+            .catch((error: any) => {
+              // Silently fail - this is expected on unsupported browsers
+              console.log("Web OTP not available:", error);
+            });
+        }
+      };
+
+      // Try Web OTP API
+      handleWebOTP();
+    }
+  }, [step]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+      const response = await fetch(`/api/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ phoneNumber }),
       });
       const data = (await response.json()) as {
-        message: string;
+        message?: string;
         verificationId: string;
       };
 
@@ -66,25 +93,30 @@ export function AuthModal() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+      const response = await fetch(`/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber, otpCode: otp, verificationId }),
         credentials: "include",
       });
       const data = (await response.json()) as {
-        message: string;
-        verificationId: string;
+        message?: string;
       };
 
       if (!response.ok) {
         throw new Error(data.message || "OTP verification failed");
       }
 
-      // On successful login, close the modal and reload the page
-      // to apply the new session state from the cookie.
+      // On successful login, close the modal and route to stored next (if present)
       closeModal();
-      window.location.reload();
+      const next = (() => {
+        try {
+          const n = localStorage.getItem("nextAfterLogin");
+          if (n) return n;
+        } catch {}
+        return "/";
+      })();
+      window.location.assign(next);
     } catch (err: any) {
       setError(err.message);
     } finally {

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 interface Model {
   id: number;
   name: string;
+  imageUrl?: string | null;
 }
 
 interface Brand {
@@ -50,13 +51,28 @@ export function ModelGrid({
             aria-label={`Select ${model.name}`}
           >
             <div className="flex h-40 flex-col items-center justify-center p-4 transition-all hover:border-pp-orange hover:shadow-lg hover:-translate-y-1 border rounded-lg bg-white cursor-pointer group">
-              <div className="h-20 w-20 flex items-center justify-center text-pp-slate bg-slate-200 rounded-md mb-2 overflow-hidden">
-                <img
-                  src="/images/models/iphone-15-pro.webp"
-                  alt={model.name}
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                />
+              <div className="h-20 w-20 flex items-center justify-center text-pp-slate rounded-md mb-2 overflow-hidden">
+                {model.imageUrl ? (
+                  <img
+                    src={model.imageUrl}
+                    alt={model.name}
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Fallback to placeholder if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                      target.nextElementSibling?.classList.remove("hidden");
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`w-full h-full flex items-center justify-center text-pp-slate ${model.imageUrl ? "hidden" : ""}`}
+                >
+                  <span className="text-xs font-medium">
+                    {model.name.split(" ")[0]}
+                  </span>
+                </div>
               </div>
               <p className="text-sm font-semibold text-pp-navy text-center group-hover:text-pp-orange transition-colors">
                 {model.name}

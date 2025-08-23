@@ -18,10 +18,17 @@ interface CartItem {
   cartId: string;
 }
 
+interface AppliedCoupon {
+  code: string;
+  discount: number;
+  couponId?: number;
+}
+
 interface CartState {
   items: CartItem[];
   serviceMode: ServiceMode;
   timeSlot: string | null;
+  appliedCoupon: AppliedCoupon | null;
 }
 
 interface CartContextType extends CartState {
@@ -33,8 +40,10 @@ interface CartContextType extends CartState {
     newPrice: number
   ) => void;
   total: number;
+  discountedTotal: number;
   setServiceMode: (mode: ServiceMode) => void;
   setTimeSlot: (slot: string | null) => void;
+  setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
   clearCart: () => void;
 }
 
@@ -69,8 +78,16 @@ function cartReducer(state: CartState, action: any): CartState {
       return { ...state, serviceMode: action.payload, timeSlot: null };
     case "SET_TIME_SLOT":
       return { ...state, timeSlot: action.payload };
+    case "SET_APPLIED_COUPON":
+      return { ...state, appliedCoupon: action.payload };
     case "CLEAR_CART":
-      return { ...state, items: [], serviceMode: null, timeSlot: null };
+      return {
+        ...state,
+        items: [],
+        serviceMode: null,
+        timeSlot: null,
+        appliedCoupon: null,
+      };
     default:
       return state;
   }
@@ -81,6 +98,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     items: [],
     serviceMode: null,
     timeSlot: null,
+    appliedCoupon: null,
   });
 
   const addToCart = useCallback((item: Omit<CartItem, "cartId">) => {
@@ -112,11 +130,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_TIME_SLOT", payload: slot });
   }, []);
 
+  const setAppliedCoupon = useCallback((coupon: AppliedCoupon | null) => {
+    dispatch({ type: "SET_APPLIED_COUPON", payload: coupon });
+  }, []);
+
   const clearCart = useCallback(() => {
     dispatch({ type: "CLEAR_CART" });
   }, []);
 
   const total = state.items.reduce((sum, item) => sum + item.price, 0);
+  const discountedTotal = state.appliedCoupon
+    ? Math.max(0, total - state.appliedCoupon.discount)
+    : total;
 
   return (
     <CartContext.Provider
@@ -126,8 +151,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         removeFromCart,
         updateGrade,
         total,
+        discountedTotal,
         setServiceMode,
         setTimeSlot,
+        setAppliedCoupon,
         clearCart,
       }}
     >

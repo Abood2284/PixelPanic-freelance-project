@@ -21,9 +21,9 @@ const FloatingIphone = forwardRef<Group, FloatingIphoneProps>(
   (
     {
       template = "batcave",
-      floatSpeed = 0.5, // Slowed down for a more luxe feel
-      floatIntensity = 0.5,
-      rotationIntensity = 0.5,
+      floatSpeed = 0.4, // Optimized for mobile
+      floatIntensity = 0.4, // Reduced for mobile
+      rotationIntensity = 0.3, // Reduced for mobile
       children,
       onLoaded,
       scale,
@@ -37,6 +37,7 @@ const FloatingIphone = forwardRef<Group, FloatingIphoneProps>(
           speed={floatSpeed}
           rotationIntensity={rotationIntensity}
           floatIntensity={floatIntensity}
+          floatingRange={[-0.1, 0.1]} // Reduced range for mobile
         >
           {children}
           <Iphone16 onLoaded={onLoaded} scale={scale} />

@@ -29,6 +29,10 @@ modelsRoutes.get("/", async (c) => {
 
     console.log(`Found ${brandModels.length} models for brand ${brand.name}`);
 
+    // Add caching headers - models rarely change
+    c.header("Cache-Control", "public, max-age=86400, s-maxage=86400");
+    c.header("ETag", `"models-${brand.id}-${brandModels.length}"`);
+
     return c.json({ brand, models: brandModels });
   } catch (error) {
     console.error("Error in models route:", error);

@@ -35,7 +35,7 @@
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
-	"vars": { "NEXT_PUBLIC_API_BASE_URL": "https://pixel-panic.pixelpanic53.workers.dev" },
+	"vars": { "NEXT_PUBLIC_API_BASE_URL": "https://pixel-panic-worker.pixelpanic53.workers.dev" },
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/

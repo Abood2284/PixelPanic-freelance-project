@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  allowedDevOrigins: ["http://localhost:3000", "http://192.168.1.8:3000"],
   images: {
     remotePatterns: [
       {
@@ -12,9 +13,32 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
   /* config options here */
+  async rewrites() {
+    const rules = [] as { source: string; destination: string }[];
+    if (process.env.NODE_ENV === "development") {
+      rules.push({
+        source: "/api/:path*",
+        destination: "http://localhost:8787/api/:path*",
+      });
+    }
+    // Proxy API in production as well, to keep cookies first-party
+    if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+      rules.push({
+        source: "/api/:path*",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/:path*`,
+      });
+    }
+    return rules;
+  },
 };
 
 export default nextConfig;

@@ -1,54 +1,58 @@
+// apps/pixel-panic-web/components/canvas/iphone-16.tsx
 "use client";
 
-import React, { forwardRef, useEffect, useMemo } from "react";
-import { useGLTF, useTexture } from "@react-three/drei";
+import React, { forwardRef, useEffect } from "react";
+import { useGLTF, useVideoTexture } from "@react-three/drei";
 import * as THREE from "three";
+import type { Group } from "three";
 
-// 1. We've updated the path to your new, 1.75MB transformed and Draco-compressed model.
-//    (I recommend renaming the file to something clean like 'iphone-16-final.glb')
+// 1. Define the path to your video file.
+//    Ensure this video is placed in your `/public` directory.
+const videoPath = "/videos/pixel-panic.mp4";
 const modelPath = "/models/iphone-16-final.glb";
+
+// Preload assets for faster initial rendering
 useGLTF.preload(modelPath);
+// Note: useVideoTexture does not have a preload helper,
+// but modern browsers are efficient at loading video.
 
-const templateTextures = {
-  default: "/images/logo.png",
-};
-
-// Define the component's props, keeping the essential `onLoaded`.
 export type Iphone16Props = {
   onLoaded?: () => void;
   scale?: number;
 } & React.ComponentProps<"group">;
 
-export const Iphone16 = forwardRef<THREE.Group, Iphone16Props>(
+export const Iphone16 = forwardRef<Group, Iphone16Props>(
   ({ onLoaded, scale = 8, ...props }, ref) => {
-    // Load the new, optimized model
     const { nodes, materials } = useGLTF(modelPath);
 
-    // Load the texture
-    const texture = useTexture(templateTextures.default);
-    texture.flipY = false;
+    // 2. Use the `useVideoTexture` hook.
+    //    We pass the video path and set properties for autoplay.
+    //    `muted` and `playsInline` are crucial for autoplay on most browsers.
+    const videoTexture = useVideoTexture(videoPath, {
+      loop: true,
+      muted: true,
+      playsInline: true,
+    });
 
-    // This useEffect is still crucial. It tells HeroSection when the model is ready.
+    videoTexture.flipY = false;
+
+    // This effect notifies the parent component once the model's data is available.
     useEffect(() => {
       if (nodes && materials && onLoaded) onLoaded();
     }, [nodes, materials, onLoaded]);
 
     return (
-      // We keep the main group with the ref, which GSAP needs to control the animation.
       <group ref={ref} {...props} dispose={null} scale={scale}>
-        {/*
-          2. This is the new, simpler mesh structure from your auto-generated file.
-             It correctly represents your optimized model.
-        */}
         <mesh
           geometry={(nodes.Cube009 as THREE.Mesh).geometry}
           material={materials["16_screen"]}
         >
+          {/* 3. Apply the video texture to the screen's material map. */}
           <meshStandardMaterial
-            map={texture}
+            map={videoTexture}
             roughness={0.1}
             metalness={0.0}
-            transparent={false}
+            emissive={"#000000"} // Set emissive to black to avoid glow
           />
         </mesh>
         <mesh

@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 
 const servicesRoutes = new Hono();
 
-// Get all services for a brand and model
+// Get all services for a brand and model - OPTIMIZED VERSION
 servicesRoutes.get("/", async (c) => {
   const brandName = c.req.query("brand");
   const modelName = c.req.query("model");
@@ -16,102 +16,99 @@ servicesRoutes.get("/", async (c) => {
   try {
     console.log(`Looking for brand: ${brandName}, model: ${modelName}`);
 
-    // Find brand by name (case-insensitive)
-    const brand = await c.req.db.query.brands.findFirst({
-      where: (b) => sql`lower(${b.name}) = lower(${brandName})`,
-    });
+    // OPTIMIZATION 1: Single query with JOINs instead of multiple separate queries
+    // This fetches brand, model, services, and issues all in one go
+    const result = await c.req.db
+      .select({
+        brandId: brands.id,
+        brandName: brands.name,
+        modelId: models.id,
+        modelName: models.name,
+        modelImageUrl: models.imageUrl,
+        issueId: issues.id,
+        issueName: issues.name,
+        issueDescription: issues.description,
+        originalPrice: modelIssues.originalPrice,
+        aftermarketPrice: modelIssues.aftermarketPrice,
+      })
+      .from(brands)
+      .innerJoin(models, sql`${models.brandId} = ${brands.id}`)
+      .innerJoin(modelIssues, sql`${modelIssues.modelId} = ${models.id}`)
+      .innerJoin(issues, sql`${issues.id} = ${modelIssues.issueId}`)
+      .where(
+        sql`lower(${brands.name}) = lower(${brandName}) AND lower(${models.name}) = lower(${modelName})`
+      );
 
-    if (!brand) {
-      console.log(`Brand not found: ${brandName}`);
-      return c.json({ error: "Brand not found" }, 404);
-    }
-
-    console.log(`Found brand: ${brand.name} with ID: ${brand.id}`);
-
-    // Find model by name and brand (case-insensitive)
-    const model = await c.req.db.query.models.findFirst({
-      where: (m) =>
-        sql`lower(${m.name}) = lower(${modelName}) AND ${m.brandId} = ${brand.id}`,
-    });
-
-    if (!model) {
-      console.log(`Model not found: ${modelName} for brand ${brand.name}`);
-      return c.json({ error: "Model not found" }, 404);
-    }
-
-    console.log(`Found model: ${model.name} with ID: ${model.id}`);
-
-    // Get all services (issues) for this model with pricing
-    const modelServices = await c.req.db.query.modelIssues.findMany({
-      where: (mi) => sql`${mi.modelId} = ${model.id}`,
-      orderBy: (mi, { asc }) => [asc(mi.issueId)],
-    });
-
-    console.log(
-      "Model services from DB:",
-      JSON.stringify(modelServices, null, 2)
-    );
-
-    if (modelServices.length === 0) {
+    if (result.length === 0) {
+      console.log(`No data found for brand: ${brandName}, model: ${modelName}`);
       return c.json({
-        brand,
-        model,
+        brand: { name: brandName },
+        model: { name: modelName },
         services: [],
         message: "No services found for this model",
       });
     }
 
-    // Get the issue details for each service
-    const issueIds = modelServices.map((service) => service.issueId);
-    console.log("Issue IDs:", issueIds);
+    // Extract brand and model info from first result
+    const brand = {
+      id: result[0].brandId,
+      name: result[0].brandName,
+    };
 
-    // Get issues one by one to avoid the IN clause issue
-    const issues = [];
-    for (const issueId of issueIds) {
-      const issue = await c.req.db.query.issues.findFirst({
-        where: (i) => sql`${i.id} = ${issueId}`,
-      });
-      if (issue) {
-        issues.push(issue);
-      }
-    }
+    const model = {
+      id: result[0].modelId,
+      name: result[0].modelName,
+      imageUrl: result[0].modelImageUrl,
+    };
 
-    console.log("Issues from DB:", JSON.stringify(issues, null, 2));
+    // Transform the data to match frontend expectations
+    const transformedServices = result
+      .map((row) => {
+        const oemPrice = Number(row.originalPrice) || 0;
+        const aftermarketPrice = Number(row.aftermarketPrice) || 0;
 
-    // Create a map of issue details
-    const issueMap = new Map(issues.map((issue) => [issue.id, issue]));
+        // Only include services that have at least OEM pricing
+        if (oemPrice <= 0) {
+          return null;
+        }
 
-    // Transform the data to match the frontend expectations
-    const transformedServices = modelServices.map((service) => {
-      const issue = issueMap.get(service.issueId);
-
-      return {
-        id: service.issueId.toString(),
-        name: issue ? issue.name : `Service ${service.issueId}`,
-        description: issue ? issue.description || "" : "Service description",
-        estimatedRepairTime: 30, // Default repair time in minutes
-        pricing: {
-          OEM: {
-            type: "OEM",
-            price: Number(service.priceOriginal) || 0,
-            originalPrice: Number(service.priceOriginal) || 0,
-            quality: "Original",
-            warranty: "12 months",
-            description:
-              "Original equipment manufacturer parts with factory quality",
+        return {
+          id: row.issueId.toString(),
+          name: row.issueName,
+          description: row.issueDescription || "Service description",
+          estimatedRepairTime: 30, // Default repair time in minutes
+          pricing: {
+            OEM: {
+              type: "OEM",
+              price: oemPrice,
+              originalPrice: oemPrice,
+              quality: "Original",
+              warranty: "90 Days",
+              description:
+                "Original equipment manufacturer parts with factory quality",
+            },
+            Aftermarket: {
+              type: "Aftermarket",
+              price: aftermarketPrice,
+              originalPrice: aftermarketPrice,
+              quality: "Compatible",
+              warranty: "30 Days",
+              description:
+                "High-quality compatible parts with excellent performance",
+            },
           },
-          Aftermarket: {
-            type: "Aftermarket",
-            price: Number(service.priceAftermarketTier1) || 0,
-            originalPrice: Number(service.priceAftermarketTier1) || 0,
-            quality: "Compatible",
-            warranty: "6 months",
-            description:
-              "High-quality compatible parts with excellent performance",
-          },
-        },
-      };
-    });
+        };
+      })
+      .filter(Boolean); // Remove null entries
+
+    console.log(
+      `Found ${transformedServices.length} services for ${brandName} ${modelName}`
+    );
+
+    // OPTIMIZATION 2: Add proper caching headers
+    // Cache for 24 hours since data rarely changes
+    c.header("Cache-Control", "public, max-age=86400, s-maxage=86400");
+    c.header("ETag", `"${brand.id}-${model.id}-${transformedServices.length}"`);
 
     return c.json({
       brand,
