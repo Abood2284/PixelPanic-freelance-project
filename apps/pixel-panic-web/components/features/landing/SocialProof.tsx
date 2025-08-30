@@ -21,20 +21,20 @@ const VIDEO_TESTIMONIALS: VideoTestimonial[] = [
   {
     name: "Priya R.",
     location: "Andheri East, Mumbai",
-    videoSrc: "/videos/pixel-panic-video-1.mp4",
-    posterSrc: "/images/pixel-panic-image-1.png",
+    videoSrc: "/videos/testimonial-1.mp4",
+    posterSrc: "/images/testimonial-3.png",
   },
   {
     name: "Amit S.",
     location: "Bandra, Mumbai",
-    videoSrc: "/videos/pixel-panic-video-2.mp4",
-    posterSrc: "/images/pixel-panic-image-2.png",
+    videoSrc: "/videos/testimonial-2.mp4",
+    posterSrc: "/images/testimonial-1.png",
   },
   {
-    name: "Rahul K.",
+    name: "Meera K.",
     location: "Powai, Mumbai",
-    videoSrc: "/videos/pixel-panic-video-3.mp4",
-    posterSrc: "/images/pixel-panic-image-3.png",
+    videoSrc: "/videos/testimonial-3.mp4",
+    posterSrc: "/images/testimonial-2.png",
   },
 ];
 

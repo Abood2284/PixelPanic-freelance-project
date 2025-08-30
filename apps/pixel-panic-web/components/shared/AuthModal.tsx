@@ -70,16 +70,21 @@ export function AuthModal() {
         credentials: "include",
         body: JSON.stringify({ phoneNumber }),
       });
-      const data = (await response.json()) as {
-        message?: string;
-        verificationId: string;
-      };
+      const rawText = await response.text();
+      let data: { message?: string; verificationId?: string } | null = null;
+      try {
+        data = rawText ? (JSON.parse(rawText) as any) : null;
+      } catch {}
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to send OTP");
+        const msg =
+          (data &&
+            (data.message || (data as any).error || (data as any).detail)) ||
+          (rawText ? rawText.trim() : "Failed to send OTP");
+        throw new Error(msg);
       }
 
-      setVerificationId(data.verificationId);
+      setVerificationId(data?.verificationId || "");
       setStep(2); // Move to OTP verification step
     } catch (err: any) {
       setError(err.message);
@@ -99,12 +104,18 @@ export function AuthModal() {
         body: JSON.stringify({ phoneNumber, otpCode: otp, verificationId }),
         credentials: "include",
       });
-      const data = (await response.json()) as {
-        message?: string;
-      };
+      const rawText = await response.text();
+      let data: { message?: string } | null = null;
+      try {
+        data = rawText ? (JSON.parse(rawText) as any) : null;
+      } catch {}
 
       if (!response.ok) {
-        throw new Error(data.message || "OTP verification failed");
+        const msg =
+          (data &&
+            (data.message || (data as any).error || (data as any).detail)) ||
+          (rawText ? rawText.trim() : "OTP verification failed");
+        throw new Error(msg);
       }
 
       // On successful login, close the modal and route to stored next (if present)

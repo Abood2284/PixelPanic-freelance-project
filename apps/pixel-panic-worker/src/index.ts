@@ -15,6 +15,7 @@ import authRoutes from "./routes/auth";
 import techniciansRoutes from "./routes/technicians";
 import ordersRoutes from "./routes/orders";
 import contactRoutes from "./routes/contact";
+import contactFormsRoutes from "./routes/contact-forms";
 
 export interface Env {
   NODE_ENV: string;
@@ -154,6 +155,7 @@ app.route("/api/auth", authRoutes);
 app.route("/api/technicians", techniciansRoutes);
 app.route("/api/orders", ordersRoutes);
 app.route("/api/contact", contactRoutes);
+app.route("/api/contact-forms", contactFormsRoutes);
 
 app.get("/", async (c) => {
   return c.json({ status: 200, message: "Healthy All System Working" });

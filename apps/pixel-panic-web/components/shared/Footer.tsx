@@ -33,7 +33,7 @@ export default function Footer() {
             About Us
           </a>
           <a
-            href="#"
+            href="/contact-us"
             className="text-gray-300 font-medium text-sm md:text-lg hover:text-orange-400 transition-colors"
           >
             Contact Us

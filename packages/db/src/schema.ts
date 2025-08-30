@@ -53,6 +53,16 @@ export const couponStatusEnum = pgEnum("coupon_status", [
 // export const partGradeEnum = pgEnum("part_grade", ["oem", "aftermarket"]);
 
 // ============================================================================
+// CONTACT FORM ENUMS
+// ============================================================================
+
+export const contactFormStatusEnum = pgEnum("contact_form_status", [
+  "pending",
+  "responded",
+  "closed",
+]);
+
+// ============================================================================
 // AUTHENTICATION TABLES (for NextAuth)
 // ============================================================================
 
@@ -158,6 +168,32 @@ export const addresses = pgTable("addresses", {
     .default(""),
   flatAndStreet: varchar("flat_and_street", { length: 512 }).notNull(),
   landmark: varchar("landmark", { length: 256 }).notNull(),
+});
+
+// ============================================================================
+// CONTACT FORM TABLES
+// ============================================================================
+
+/**
+ * Stores contact form submissions from users
+ * This table captures inquiries, feedback, and general contact requests
+ */
+export const contactForms = pgTable("contact_forms", {
+  id: serial("id").primaryKey(),
+  firstName: varchar("first_name", { length: 256 }).notNull(),
+  lastName: varchar("last_name", { length: 256 }).notNull(),
+  email: varchar("email", { length: 256 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  subject: varchar("subject", { length: 512 }).notNull(),
+  message: text("message").notNull(),
+  status: contactFormStatusEnum("status").default("pending").notNull(),
+  adminNotes: text("admin_notes"), // For internal notes and responses
+  respondedAt: timestamp("responded_at"),
+  respondedBy: text("responded_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 /**
@@ -384,6 +420,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   technicians: many(technicians),
   coupons: many(coupons), // coupons created by admin
   couponUsage: many(couponUsage), // coupons used by user
+  respondedContactForms: many(contactForms), // contact forms responded by admin
 }));
 
 // An order belongs to one user, has many items, and has one address.
@@ -473,6 +510,14 @@ export const couponUsageRelations = relations(couponUsage, ({ one }) => ({
   }),
   user: one(users, {
     fields: [couponUsage.userId],
+    references: [users.id],
+  }),
+}));
+
+// Contact form belongs to one user (who responded to it)
+export const contactFormsRelations = relations(contactForms, ({ one }) => ({
+  respondedByUser: one(users, {
+    fields: [contactForms.respondedBy],
     references: [users.id],
   }),
 }));
