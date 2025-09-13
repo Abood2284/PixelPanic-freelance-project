@@ -8,8 +8,10 @@ import type { Group } from "three";
 
 // 1. Define the path to your video file.
 //    Ensure this video is placed in your `/public` directory.
-const videoPath = "/videos/pixel-panic.mp4";
-const modelPath = "/models/iphone-16-final.glb";
+const videoPath =
+  "https://pub-e75db92e1a5e4c81aa5e94b6ad9d0a98.r2.dev/models/pixel-panic.mp4";
+const modelPath =
+  "https://pub-e75db92e1a5e4c81aa5e94b6ad9d0a98.r2.dev/models/iphone-16-final.glb";
 
 // Preload assets for faster initial rendering
 useGLTF.preload(modelPath);
@@ -32,6 +34,7 @@ export const Iphone16 = forwardRef<Group, Iphone16Props>(
       loop: true,
       muted: true,
       playsInline: true,
+      crossOrigin: "anonymous", // Needed for most hosted/video CORS compatibility
     });
 
     videoTexture.flipY = false;

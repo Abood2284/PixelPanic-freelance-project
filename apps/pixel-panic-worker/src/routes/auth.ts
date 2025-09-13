@@ -66,7 +66,16 @@ export const verifyAuth = createMiddleware(async (c, next) => {
 authRoutes.get("/me", verifyAuth, async (c) => {
   const userId = c.get("userId");
   const url = new URL(c.req.url);
-  console.log("[AUTH] /me", { userId, path: url.pathname });
+  const origin = c.req.header("origin");
+  const cookieHeader = c.req.header("cookie");
+
+  console.log("[AUTH] /me", {
+    userId,
+    path: url.pathname,
+    origin,
+    hasCookie: !!cookieHeader,
+    cookieLength: cookieHeader?.length || 0,
+  });
 
   if (!userId)
     throw new HTTPException(500, { message: "Session context error." });
@@ -81,6 +90,30 @@ authRoutes.get("/me", verifyAuth, async (c) => {
   }
 
   return c.json({ user });
+});
+
+// Debug endpoint to check authentication status without requiring auth
+authRoutes.get("/debug", async (c) => {
+  const origin = c.req.header("origin");
+  const cookieHeader = c.req.header("cookie");
+  const token = getCookie(c, "auth_token");
+
+  console.log("[AUTH] /debug", {
+    origin,
+    hasCookie: !!cookieHeader,
+    cookieLength: cookieHeader?.length || 0,
+    hasToken: !!token,
+    tokenLength: token?.length || 0,
+  });
+
+  return c.json({
+    origin,
+    hasCookie: !!cookieHeader,
+    cookieLength: cookieHeader?.length || 0,
+    hasToken: !!token,
+    tokenLength: token?.length || 0,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Endpoint to send OTP
@@ -152,9 +185,8 @@ authRoutes.post("/verify-otp", async (c) => {
   // Ensure 'secure' is true with SameSite=None per browser requirements
   setCookie(c, "auth_token", token, {
     httpOnly: true,
-    secure: c.env.NODE_ENV === "production",
-    sameSite: c.env.NODE_ENV === "production" ? "None" : "Lax",
-    domain: c.env.AUTH_COOKIE_DOMAIN || undefined,
+    secure: true, // Always secure in production
+    sameSite: "None", // Allow cross-site cookies for workers.dev
     path: "/",
     maxAge: 604800, // 7 days in seconds
   });
@@ -173,6 +205,8 @@ authRoutes.post("/logout", async (c) => {
   // Delete the secure session cookie
   deleteCookie(c, "auth_token", {
     path: "/",
+    secure: true,
+    sameSite: "None",
   });
   return c.json({ message: "Logged out successfully" });
 });

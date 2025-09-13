@@ -113,9 +113,16 @@ export function AddPhoneForm({
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/add-model`, {
+      // Use the Next.js proxy instead of direct worker URL
+      const apiUrl =
+        process.env.NODE_ENV === "development"
+          ? `${API_BASE_URL}/api/admin/add-model`
+          : "/api/admin/add-model";
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Include cookies for authentication
         body: JSON.stringify(validation.data), // Send validated data
       });
       const result = (await response.json()) as { message: string };

@@ -104,23 +104,28 @@ const configureCORS = () => {
 
   return cors({
     origin: (origin) => {
+      console.log("[CORS] Checking origin:", origin);
+
       // Allow if the origin is in the list of allowed origins
       if (allowedOrigins.includes(origin)) {
+        console.log("[CORS] Origin allowed:", origin);
         return origin;
       }
 
       // Default to the first origin in the list if the origin is null or not specified
       if (!origin) {
+        console.log("[CORS] No origin provided, using default");
         return allowedOrigins[0];
       }
 
       // Block requests if the origin does not match any of the allowed origins
+      console.log("[CORS] Origin blocked:", origin);
       return null;
     },
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    exposeHeaders: ["Content-Length", "X-Request-Id"],
+    allowHeaders: ["Content-Type", "Authorization", "Cookie"],
+    exposeHeaders: ["Content-Length", "X-Request-Id", "Set-Cookie"],
     maxAge: 600,
   });
 };

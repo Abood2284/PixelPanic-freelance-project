@@ -27,7 +27,11 @@ interface AppliedCoupon {
 interface CartState {
   items: CartItem[];
   serviceMode: ServiceMode;
+  // Unified current slot for the active mode (back-compat for existing consumers)
   timeSlot: string | null;
+  // Mode-specific time slots so each mode can retain its own selection
+  doorstepTimeSlot: string | null;
+  carryInTimeSlot: string | null;
   appliedCoupon: AppliedCoupon | null;
 }
 
@@ -43,6 +47,10 @@ interface CartContextType extends CartState {
   discountedTotal: number;
   setServiceMode: (mode: ServiceMode) => void;
   setTimeSlot: (slot: string | null) => void;
+  setTimeSlotForMode: (
+    mode: Exclude<ServiceMode, null>,
+    slot: string | null
+  ) => void;
   setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
   clearCart: () => void;
 }
@@ -74,10 +82,72 @@ function cartReducer(state: CartState, action: any): CartState {
             : item
         ),
       };
-    case "SET_SERVICE_MODE":
-      return { ...state, serviceMode: action.payload, timeSlot: null };
-    case "SET_TIME_SLOT":
+    case "SET_SERVICE_MODE": {
+      const nextMode: ServiceMode = action.payload;
+      // When switching modes, keep per-mode selections and project the active one into timeSlot
+      const nextTimeSlot =
+        nextMode === "Doorstep"
+          ? state.doorstepTimeSlot
+          : nextMode === "CarryIn"
+            ? state.carryInTimeSlot
+            : null;
+      // Clear the opposite mode's slot so only the active mode has a selection
+      if (nextMode === "Doorstep") {
+        return {
+          ...state,
+          serviceMode: nextMode,
+          timeSlot: nextTimeSlot,
+          carryInTimeSlot: null,
+        };
+      }
+      if (nextMode === "CarryIn") {
+        return {
+          ...state,
+          serviceMode: nextMode,
+          timeSlot: nextTimeSlot,
+          doorstepTimeSlot: null,
+        };
+      }
+      return { ...state, serviceMode: nextMode, timeSlot: nextTimeSlot };
+    }
+    case "SET_TIME_SLOT": {
+      // Back-compat: set timeSlot for the active mode, and write to the corresponding per-mode field
+      const activeMode = state.serviceMode;
+      if (activeMode === "Doorstep") {
+        return {
+          ...state,
+          timeSlot: action.payload,
+          doorstepTimeSlot: action.payload,
+        };
+      }
+      if (activeMode === "CarryIn") {
+        return {
+          ...state,
+          timeSlot: action.payload,
+          carryInTimeSlot: action.payload,
+        };
+      }
       return { ...state, timeSlot: action.payload };
+    }
+    case "SET_TIME_SLOT_FOR_MODE": {
+      const { mode, slot } = action.payload as {
+        mode: Exclude<ServiceMode, null>;
+        slot: string | null;
+      };
+      if (mode === "Doorstep") {
+        return {
+          ...state,
+          doorstepTimeSlot: slot,
+          // If this mode is active, also project to timeSlot for existing consumers
+          timeSlot: state.serviceMode === "Doorstep" ? slot : state.timeSlot,
+        };
+      }
+      return {
+        ...state,
+        carryInTimeSlot: slot,
+        timeSlot: state.serviceMode === "CarryIn" ? slot : state.timeSlot,
+      };
+    }
     case "SET_APPLIED_COUPON":
       return { ...state, appliedCoupon: action.payload };
     case "CLEAR_CART":
@@ -86,6 +156,8 @@ function cartReducer(state: CartState, action: any): CartState {
         items: [],
         serviceMode: null,
         timeSlot: null,
+        doorstepTimeSlot: null,
+        carryInTimeSlot: null,
         appliedCoupon: null,
       };
     default:
@@ -98,6 +170,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     items: [],
     serviceMode: null,
     timeSlot: null,
+    doorstepTimeSlot: null,
+    carryInTimeSlot: null,
     appliedCoupon: null,
   });
 
@@ -130,6 +204,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_TIME_SLOT", payload: slot });
   }, []);
 
+  const setTimeSlotForMode = useCallback(
+    (mode: Exclude<ServiceMode, null>, slot: string | null) => {
+      dispatch({ type: "SET_TIME_SLOT_FOR_MODE", payload: { mode, slot } });
+    },
+    []
+  );
+
   const setAppliedCoupon = useCallback((coupon: AppliedCoupon | null) => {
     dispatch({ type: "SET_APPLIED_COUPON", payload: coupon });
   }, []);
@@ -154,6 +235,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         discountedTotal,
         setServiceMode,
         setTimeSlot,
+        setTimeSlotForMode,
         setAppliedCoupon,
         clearCart,
       }}

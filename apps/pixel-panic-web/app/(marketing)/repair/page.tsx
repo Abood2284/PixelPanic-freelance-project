@@ -17,8 +17,12 @@ function BrandsAllGrid() {
   useEffect(() => {
     async function run() {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-        const res = await fetch(`${API_BASE_URL}/api/brands`);
+        // Use the Next.js proxy instead of direct worker URL
+        const apiUrl =
+          process.env.NODE_ENV === "development"
+            ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/brands`
+            : "/api/brands";
+        const res = await fetch(apiUrl);
         if (!res.ok) return setBrands([]);
         const data = (await res.json()) as Brand[];
         setBrands(data);

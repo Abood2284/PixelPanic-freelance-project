@@ -21,14 +21,33 @@ export function useAuth() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        console.log("Fetching user session from /api/auth/me");
         // Use relative path so cookies are first-party via Next rewrites
         const response = await fetch(`/api/auth/me`, {
           credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
         });
+
+        console.log("Auth API response status:", response.status);
+
         if (response.ok) {
           const data = (await response.json()) as { user: User };
+          console.log("User data received:", data);
           setUser(data.user);
+        } else if (response.status === 401) {
+          // 401 is expected when user is not authenticated - don't log as error
+          console.log("User not authenticated (401)");
+          setUser(null);
         } else {
+          // Only log as error for unexpected status codes
+          const errorText = await response.text();
+          console.error("Auth API error:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText,
+          });
           setUser(null);
         }
       } catch (error) {
@@ -60,10 +79,25 @@ export function useAuth() {
     return true;
   }, [user, isLoading, openModal, pathname]);
 
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      // Always clear the user state, even if the logout request fails
+      setUser(null);
+    }
+  }, []);
+
   return {
     user,
     isAuthenticated: !!user,
     isLoading,
     requireAuth,
+    logout,
   };
 }

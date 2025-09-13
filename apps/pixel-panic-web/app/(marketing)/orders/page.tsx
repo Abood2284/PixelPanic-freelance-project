@@ -87,15 +87,37 @@ export default function OrderHistoryPage() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders`, {
+      // Use the Next.js proxy instead of direct worker URL to ensure cookies are sent
+      const apiUrl =
+        process.env.NODE_ENV === "development"
+          ? `${API_BASE_URL}/api/orders`
+          : "/api/orders";
+
+      console.log("Fetching orders from:", apiUrl);
+      const response = await fetch(apiUrl, {
         credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
+
+      console.log("Orders API response status:", response.status);
+      console.log(
+        "Orders API response headers:",
+        Object.fromEntries(response.headers.entries())
+      );
 
       if (response.ok) {
         const data = (await response.json()) as { orders: Order[] };
+        console.log("Orders data received:", data);
         setOrders(data.orders || []);
       } else {
-        console.error("Failed to fetch orders");
+        const errorText = await response.text();
+        console.error("Failed to fetch orders:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
       }
     } catch (error) {
       console.error("Error fetching orders:", error);

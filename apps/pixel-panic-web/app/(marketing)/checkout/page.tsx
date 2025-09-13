@@ -56,6 +56,11 @@ export default function CheckoutPage() {
       router.push("/checkout/service-mode");
       return;
     }
+    // Require timeSlot for both service modes
+    if (!timeSlot) {
+      router.push("/checkout/service-mode");
+      return;
+    }
   }, [items.length, serviceMode, router]);
 
   const form = useForm<AddressFormValues>({

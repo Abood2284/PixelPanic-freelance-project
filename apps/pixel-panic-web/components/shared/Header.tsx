@@ -20,7 +20,7 @@ import { useAuthModal } from "@/hooks/use-auth-modal";
 type HeaderProps = {};
 
 const Header: React.FC<HeaderProps> = () => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const pathname = usePathname();
   const { openModal } = useAuthModal();
 
@@ -92,15 +92,8 @@ const Header: React.FC<HeaderProps> = () => {
   }
 
   const handleLogout = async () => {
-    try {
-      await fetch(`/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
+    await logout();
+    window.location.href = "/";
   };
 
   return (

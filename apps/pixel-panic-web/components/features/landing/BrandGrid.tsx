@@ -41,21 +41,19 @@ export function BrandGrid({ brands, searchPlaceholder }: BrandGridProps) {
   useEffect(() => {
     async function fetchAllBrands() {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-        console.log("🔍 Fetching brands from:", `${API_BASE_URL}/api/brands`);
+        // Use the Next.js proxy instead of direct worker URL
+        const apiUrl =
+          process.env.NODE_ENV === "development"
+            ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/brands`
+            : "/api/brands";
 
-        const response = await fetch(`${API_BASE_URL}/api/brands`);
+        const response = await fetch(apiUrl);
 
         if (!response.ok) {
           throw new Error("Failed to fetch brands");
         }
 
         const data = (await response.json()) as Brand[];
-        console.log("📦 All brands from API:", data.length);
-        console.log(
-          "📦 API brand names:",
-          data.map((b) => b.name)
-        );
         setAllBrands(data);
       } catch (err) {
         console.error("❌ Error fetching brands:", err);
@@ -87,23 +85,14 @@ export function BrandGrid({ brands, searchPlaceholder }: BrandGridProps) {
 
   if (query.trim()) {
     // When searching, search through ALL brands
-    console.log("🔍 Searching for:", query);
     displayBrands = allBrands.filter((b) =>
       b.name.toLowerCase().includes(query.toLowerCase())
     );
-    console.log("🔍 Search results:", displayBrands.length);
   } else {
     if (isDesktop) {
       // On desktop, show ALL brands by default
-      console.log("🖥️ Desktop detected: showing all brands (no search query)");
       displayBrands = allBrands;
     } else {
-      // On smaller devices, show ONLY selective brands in correct order
-      console.log(
-        "📱 Mobile/Tablet: showing selective brands (no search query)"
-      );
-      console.log("🎯 Selective brands list:", SELECTIVE_BRANDS);
-
       // Create a complete list using ONLY our selective brands
       displayBrands = SELECTIVE_BRANDS.map((brandName) => {
         // Try to find the brand in backend data (case-insensitive)
@@ -112,13 +101,9 @@ export function BrandGrid({ brands, searchPlaceholder }: BrandGridProps) {
         );
 
         if (backendBrand) {
-          console.log(
-            `✅ Found ${brandName} in backend data with logo: ${backendBrand.logoUrl ? "YES" : "NO"}`
-          );
           // Use backend brand with logo URL
           return backendBrand;
         } else {
-          console.log(`❌ ${brandName} not found in backend, using fallback`);
           // Use fallback brand from props
           const fallbackBrand = brands.find((b) => b.name === brandName);
           return (
@@ -131,12 +116,6 @@ export function BrandGrid({ brands, searchPlaceholder }: BrandGridProps) {
           );
         }
       });
-
-      console.log("🎯 Final display brands:", displayBrands.length);
-      console.log(
-        "🎯 Display brand names:",
-        displayBrands.map((b) => b.name)
-      );
     }
   }
 

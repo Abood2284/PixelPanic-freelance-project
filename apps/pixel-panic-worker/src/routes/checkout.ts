@@ -374,6 +374,13 @@ checkoutRoutes.post("/create-order", async (c) => {
     });
   }
 
+  // Enforce time slot selection for both service modes
+  if (!serviceDetails?.timeSlot) {
+    throw new HTTPException(400, {
+      message: "A time slot is required for the selected service mode.",
+    });
+  }
+
   try {
     // Create a WebSocket pool for transactions
     const pool = createDbPool(c.env.DATABASE_URL);

@@ -20,7 +20,13 @@ import Footer from "@/components/shared/Footer";
 const timeSlots = ["9AM - 11AM", "11AM - 1PM", "2PM - 4PM", "4PM - 6PM"];
 
 export default function ServiceModePage() {
-  const { serviceMode, setServiceMode, timeSlot, setTimeSlot } = useCart();
+  const {
+    serviceMode,
+    setServiceMode,
+    doorstepTimeSlot,
+    carryInTimeSlot,
+    setTimeSlotForMode,
+  } = useCart();
   const router = useRouter();
 
   // Set Doorstep as default service mode if none is selected
@@ -31,16 +37,23 @@ export default function ServiceModePage() {
   }, [serviceMode, setServiceMode]);
 
   const handleModeSelect = (mode: "Doorstep" | "CarryIn") => {
+    // Switch active mode; existing per-mode selection will be projected automatically
     setServiceMode(mode);
   };
 
-  const handleTimeSlotSelect = (slot: string) => {
-    setTimeSlot(slot);
+  const handleTimeSlotSelectForMode = (
+    mode: "Doorstep" | "CarryIn",
+    slot: string
+  ) => {
+    if (serviceMode !== mode) {
+      setServiceMode(mode);
+    }
+    setTimeSlotForMode(mode, slot);
   };
 
   const canProceed =
-    serviceMode &&
-    (serviceMode === "CarryIn" || (serviceMode === "Doorstep" && timeSlot));
+    (serviceMode === "Doorstep" && !!doorstepTimeSlot) ||
+    (serviceMode === "CarryIn" && !!carryInTimeSlot);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -70,27 +83,27 @@ export default function ServiceModePage() {
                   device
                 </CardDescription>
               </CardHeader>
-              {serviceMode === "Doorstep" && (
-                <CardContent className="animate-in slide-in-from-top-2 duration-300">
-                  <div className="pt-4 border-t">
-                    <h4 className="font-semibold mb-4">Select a Time Slot</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {timeSlots.map((slot) => (
-                        <Button
-                          key={slot}
-                          variant={timeSlot === slot ? "default" : "outline"}
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent card onClick from firing again
-                            handleTimeSlotSelect(slot);
-                          }}
-                        >
-                          {slot}
-                        </Button>
-                      ))}
-                    </div>
+              <CardContent className="animate-in slide-in-from-top-2 duration-300">
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold mb-4">Select a Time Slot</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {timeSlots.map((slot) => (
+                      <Button
+                        key={slot}
+                        variant={
+                          doorstepTimeSlot === slot ? "default" : "outline"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card onClick from firing again
+                          handleTimeSlotSelectForMode("Doorstep", slot);
+                        }}
+                      >
+                        {slot}
+                      </Button>
+                    ))}
                   </div>
-                </CardContent>
-              )}
+                </div>
+              </CardContent>
             </Card>
 
             {/* Carry-in Store Card */}
@@ -109,6 +122,29 @@ export default function ServiceModePage() {
                   back at your place as soon as it is fixed
                 </CardDescription>
               </CardHeader>
+              <CardContent className="animate-in slide-in-from-top-2 duration-300">
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold mb-4">
+                    Select a Pickup Time Slot
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {timeSlots.map((slot) => (
+                      <Button
+                        key={slot}
+                        variant={
+                          carryInTimeSlot === slot ? "default" : "outline"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTimeSlotSelectForMode("CarryIn", slot);
+                        }}
+                      >
+                        {slot}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           </div>
 
