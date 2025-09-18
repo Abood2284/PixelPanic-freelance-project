@@ -1,33 +1,49 @@
 // apps/pixel-panic-web/app/(marketing)/page.tsx
 "use client";
 
-import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ScrollTrigger, ScrollSmoother } from "gsap/all";
+import { ScrollTrigger } from "gsap/all";
 import { HeroSection } from "@/components/features/landing/HeroSection";
 import BrandSelector from "@/components/features/landing/BrandSelector";
-import SocialProof from "@/components/features/landing/SocialProof";
 import { ProcessStepper } from "@/components/features/landing/process-stepper";
 import Footer from "@/components/shared/Footer";
+import dynamic from "next/dynamic";
 
-gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+gsap.registerPlugin(ScrollTrigger);
+
+const UGCScroller = dynamic(
+  () => import("@/components/features/landing/UGCScroller"),
+  { ssr: false }
+);
+
+// Reuse your existing assets (works even if /public/videos exists only in prod)
+const TESTIMONIAL_VIDEOS = [
+  {
+    src: "/videos/pixel-panic-video-1.mp4",
+    poster: "/images/testimonial-3.png",
+  },
+  {
+    src: "/videos/pixel-panic-video-2.mp4",
+    poster: "/images/testimonial-1.png",
+  },
+  {
+    src: "/videos/pixel-panic-video-3.mp4",
+    poster: "/images/testimonial-2.png",
+  },
+];
 
 export default function MarketingHomePage() {
   return (
     <main>
-      <div id="smooth-wrapper">
-        <div id="smooth-content">
-          <section className="section-hero h-screen">
-            <HeroSection />
-          </section>
-          <section className="section-brand-selector">
-            <BrandSelector />
-          </section>
-          <SocialProof />
-          <ProcessStepper />
-          <Footer />
-        </div>
-      </div>
+      <section className="section-hero h-screen">
+        <HeroSection />
+      </section>
+      <section className="section-brand-selector">
+        <BrandSelector />
+      </section>
+      <UGCScroller />
+      <ProcessStepper />
+      <Footer />
     </main>
   );
 }

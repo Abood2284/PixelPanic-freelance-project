@@ -6,12 +6,12 @@ import { CartProvider } from "@/context/CartProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { ptSerif, yeagerOne } from "@/public/fonts/fonts";
 import { AuthModal } from "@/components/shared/AuthModal";
-import { ScrollSmoother, ScrollTrigger } from "gsap/all";
+import { ScrollTrigger } from "gsap/all";
 import gsap from "gsap";
 import GSAPProvider from "@/components/gsap/GSAPProvider";
 import { DevIndicator } from "@/components/dev/dev-indicator";
 
-gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+gsap.registerPlugin(ScrollTrigger);
 
 export const metadata: Metadata = {
   title: "Mobile Repair in Mumbai – PixelPanic Doorstep & Store",

@@ -95,9 +95,10 @@ function HeroSection() {
         {/* Show WebP while 3D is not mounted */}
         {!show3D && (
           <Image
-            src="https://pub-e75db92e1a5e4c81aa5e94b6ad9d0a98.r2.dev/posters/iphone-hero.webp"
+            src="https://pub-e75db92e1a5e4c81aa5e94b6ad9d0a98.r2.dev/models/iphone-16-final.webp"
             alt="3D iPhone Hero"
             fill // or use width/height if you prefer
+            unoptimized
             priority // Ensures it's LCP!
             style={{
               objectFit: "contain", // Adjust based on design

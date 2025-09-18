@@ -27,7 +27,7 @@ export default function Footer() {
         {/* Footer links */}
         <div className="flex flex-row justify-center gap-4 md:gap-16 max-w-4xl w-full px-4 mb-12">
           <a
-            href="#"
+            href="/about-us"
             className="text-gray-300 font-medium text-sm md:text-lg hover:text-orange-400 transition-colors"
           >
             About Us
@@ -39,7 +39,7 @@ export default function Footer() {
             Contact Us
           </a>
           <a
-            href="#"
+            href="/support"
             className="text-gray-300 font-medium text-sm md:text-lg hover:text-orange-400 transition-colors"
           >
             Support

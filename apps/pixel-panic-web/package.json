@@ -36,6 +36,7 @@
 		"dotenv": "^17.2.0",
 		"framer-motion": "^12.23.7",
 		"gsap": "^3.13.0",
+		"hls.js": "^1.6.12",
 		"input-otp": "^1.4.2",
 		"jose": "^6.0.12",
 		"lottie-react": "^2.4.1",
