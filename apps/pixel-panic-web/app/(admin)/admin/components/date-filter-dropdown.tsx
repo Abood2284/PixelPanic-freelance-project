@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { IconCalendar } from "@tabler/icons-react";
 
-export type DateFilterDuration = "today" | "yesterday" | "custom";
+export type DateFilterDuration = "today" | "yesterday" | "custom" | "all";
 
 interface DateFilterDropdownProps {
   duration: DateFilterDuration;
@@ -76,6 +76,7 @@ export function DateFilterDropdown({
           <SelectContent>
             <SelectItem value="today">Today</SelectItem>
             <SelectItem value="yesterday">Yesterday</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>

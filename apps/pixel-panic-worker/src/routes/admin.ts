@@ -63,6 +63,98 @@ const requireAdmin = createMiddleware(async (c, next) => {
   await next();
 });
 
+function parseTzOffsetMinutes(value: string | undefined) {
+  if (!value) return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseDateParts(value: string) {
+  const parts = value.split("-").map((part) => Number(part));
+  if (parts.length !== 3) return null;
+  const [year, month, day] = parts;
+  if (!year || !month || !day) return null;
+  return { year, month, day };
+}
+
+function getUtcRangeForDuration(options: {
+  duration: string;
+  startDate?: string;
+  endDate?: string;
+  tzOffsetMinutes: number;
+}) {
+  const { duration, startDate, endDate, tzOffsetMinutes } = options;
+  if (duration === "all") return null;
+
+  const offsetMs = tzOffsetMinutes * 60 * 1000;
+  const now = new Date();
+  const localNow = new Date(now.getTime() - offsetMs);
+  const localDay = new Date(
+    Date.UTC(
+      localNow.getUTCFullYear(),
+      localNow.getUTCMonth(),
+      localNow.getUTCDate()
+    )
+  );
+
+  if (duration === "today" || duration === "yesterday") {
+    if (duration === "yesterday") {
+      localDay.setUTCDate(localDay.getUTCDate() - 1);
+    }
+    const year = localDay.getUTCFullYear();
+    const month = localDay.getUTCMonth();
+    const day = localDay.getUTCDate();
+    const startDateUtc = new Date(
+      Date.UTC(year, month, day, 0, 0, 0, 0) + offsetMs
+    );
+    const endDateUtc = new Date(
+      Date.UTC(year, month, day, 23, 59, 59, 999) + offsetMs
+    );
+    return { startDate: startDateUtc, endDate: endDateUtc };
+  }
+
+  if (duration === "custom") {
+    if (!startDate || !endDate) {
+      throw new HTTPException(400, {
+        message: "startDate and endDate are required when duration is 'custom'",
+      });
+    }
+    const startParts = parseDateParts(startDate);
+    const endParts = parseDateParts(endDate);
+    if (!startParts || !endParts) {
+      throw new HTTPException(400, { message: "Invalid date range." });
+    }
+    const startDateUtc = new Date(
+      Date.UTC(startParts.year, startParts.month - 1, startParts.day, 0, 0, 0, 0) +
+        offsetMs
+    );
+    const endDateUtc = new Date(
+      Date.UTC(endParts.year, endParts.month - 1, endParts.day, 23, 59, 59, 999) +
+        offsetMs
+    );
+    if (Number.isNaN(startDateUtc.getTime()) || Number.isNaN(endDateUtc.getTime())) {
+      throw new HTTPException(400, { message: "Invalid date range." });
+    }
+    if (endDateUtc < startDateUtc) {
+      throw new HTTPException(400, {
+        message: "endDate must be on or after startDate",
+      });
+    }
+    return { startDate: startDateUtc, endDate: endDateUtc };
+  }
+
+  const year = localDay.getUTCFullYear();
+  const month = localDay.getUTCMonth();
+  const day = localDay.getUTCDate();
+  const startDateUtc = new Date(
+    Date.UTC(year, month, day, 0, 0, 0, 0) + offsetMs
+  );
+  const endDateUtc = new Date(
+    Date.UTC(year, month, day, 23, 59, 59, 999) + offsetMs
+  );
+  return { startDate: startDateUtc, endDate: endDateUtc };
+}
+
 /**
  * POST /api/admin/create-admin
  * Creates the initial admin user. This endpoint should be disabled in production.
@@ -275,53 +367,23 @@ adminRoutes.get("/orders/:id", async (c) => {
 adminRoutes.get("/orders", requireAdmin, async (c) => {
   try {
     const duration = c.req.query("duration") || "today";
-    let startDate: Date;
-    let endDate: Date;
-
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    if (duration === "today") {
-      startDate = todayStart;
-      endDate = todayEnd;
-    } else if (duration === "yesterday") {
-      const yesterdayStart = new Date(todayStart);
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-      const yesterdayEnd = new Date(yesterdayStart);
-      yesterdayEnd.setHours(23, 59, 59, 999);
-      startDate = yesterdayStart;
-      endDate = yesterdayEnd;
-    } else if (duration === "custom") {
-      const startDateStr = c.req.query("startDate");
-      const endDateStr = c.req.query("endDate");
-      if (!startDateStr || !endDateStr) {
-        throw new HTTPException(400, {
-          message: "startDate and endDate are required when duration is 'custom'",
-        });
-      }
-      startDate = new Date(startDateStr);
-      endDate = new Date(endDateStr);
-      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-        throw new HTTPException(400, { message: "Invalid date range." });
-      }
-      if (endDate < startDate) {
-        throw new HTTPException(400, {
-          message: "endDate must be on or after startDate",
-        });
-      }
-      endDate.setHours(23, 59, 59, 999);
-    } else {
-      startDate = todayStart;
-      endDate = todayEnd;
-    }
+    const tzOffsetMinutes = parseTzOffsetMinutes(c.req.query("tzOffsetMinutes"));
+    const dateRange = getUtcRangeForDuration({
+      duration,
+      startDate: c.req.query("startDate") || undefined,
+      endDate: c.req.query("endDate") || undefined,
+      tzOffsetMinutes,
+    });
 
     const allOrders = await c.req.db.query.orders.findMany({
-      where: and(
-        gte(orders.createdAt, startDate),
-        lte(orders.createdAt, endDate)
-      ),
+      ...(dateRange
+        ? {
+            where: and(
+              gte(orders.createdAt, dateRange.startDate),
+              lte(orders.createdAt, dateRange.endDate)
+            ),
+          }
+        : {}),
       orderBy: [desc(orders.createdAt)],
       with: {
         user: {
@@ -364,40 +426,13 @@ adminRoutes.get("/dashboard", async (c) => {
 
     // Parse query parameters for date filtering
     const duration = c.req.query("duration") || "today";
-    let startDate: Date;
-    let endDate: Date;
-
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    if (duration === "today") {
-      startDate = todayStart;
-      endDate = todayEnd;
-    } else if (duration === "yesterday") {
-      const yesterdayStart = new Date(todayStart);
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-      const yesterdayEnd = new Date(yesterdayStart);
-      yesterdayEnd.setHours(23, 59, 59, 999);
-      startDate = yesterdayStart;
-      endDate = yesterdayEnd;
-    } else if (duration === "custom") {
-      const startDateStr = c.req.query("startDate");
-      const endDateStr = c.req.query("endDate");
-      if (!startDateStr || !endDateStr) {
-        throw new HTTPException(400, {
-          message: "startDate and endDate are required when duration is 'custom'",
-        });
-      }
-      startDate = new Date(startDateStr);
-      endDate = new Date(endDateStr);
-      endDate.setHours(23, 59, 59, 999);
-    } else {
-      // Default to today
-      startDate = todayStart;
-      endDate = todayEnd;
-    }
+    const tzOffsetMinutes = parseTzOffsetMinutes(c.req.query("tzOffsetMinutes"));
+    const dateRange = getUtcRangeForDuration({
+      duration,
+      startDate: c.req.query("startDate") || undefined,
+      endDate: c.req.query("endDate") || undefined,
+      tzOffsetMinutes,
+    });
 
     // --- 1. Fetch Summary Statistics for completed orders in date range ---
     // Filter completed orders by completedAt date
@@ -414,11 +449,13 @@ adminRoutes.get("/dashboard", async (c) => {
       })
       .from(orders)
       .where(
-        and(
-          eq(orders.status, "completed"),
-          gte(orders.completedAt, startDate),
-          lte(orders.completedAt, endDate)
-        )
+        dateRange
+          ? and(
+              eq(orders.status, "completed"),
+              gte(orders.completedAt, dateRange.startDate),
+              lte(orders.completedAt, dateRange.endDate)
+            )
+          : eq(orders.status, "completed")
       );
 
     const revenue = Number(statsQuery[0]?.revenue) || 0;

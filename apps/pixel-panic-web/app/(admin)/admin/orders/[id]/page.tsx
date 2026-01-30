@@ -68,7 +68,7 @@ export default async function OrderDetailPage({
 
   const customerEmail =
     [order.address?.email, order.user.email].find(
-      (e) => typeof e === "string" && e.trim().length > 0
+      (e) => typeof e === "string" && e.trim().length > 0,
     ) ?? "No email provided";
 
   const isCompleted = order.status === "completed";
@@ -91,7 +91,7 @@ export default async function OrderDetailPage({
     <div className="flex flex-col gap-6">
       <div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/admin/orders">
+          <Link href="/admin/dashboard">
             <IconArrowLeft className="mr-2 h-4 w-4" />
             Back to All Orders
           </Link>
@@ -112,7 +112,10 @@ export default async function OrderDetailPage({
               {/* Mobile View */}
               <div className="md:hidden flex flex-col gap-4">
                 {order.orderItems.map((item) => (
-                  <div key={item.id} className="flex flex-col gap-2 rounded-lg border p-3">
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-2 rounded-lg border p-3"
+                  >
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="font-medium">{item.issueName}</div>
@@ -155,7 +158,9 @@ export default async function OrderDetailPage({
                             for {item.modelName}
                           </div>
                         </TableCell>
-                        <TableCell className="capitalize">{item.grade}</TableCell>
+                        <TableCell className="capitalize">
+                          {item.grade}
+                        </TableCell>
                         <TableCell className="text-right">
                           {new Intl.NumberFormat("en-IN", {
                             style: "currency",
@@ -171,9 +176,7 @@ export default async function OrderDetailPage({
           </Card>
 
           {/* Completion Form or Cost Display */}
-          {canComplete && (
-            <OrderCompletionForm orderId={order.id} />
-          )}
+          {canComplete && <OrderCompletionForm orderId={order.id} />}
 
           {isCompleted && (
             <Card>
@@ -188,7 +191,8 @@ export default async function OrderDetailPage({
                   <div className="space-y-1">
                     <div className="text-sm text-slate-500">Part Price</div>
                     <div className="text-lg font-semibold">
-                      ₹{partPrice.toLocaleString("en-IN", {
+                      ₹
+                      {partPrice.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -197,7 +201,8 @@ export default async function OrderDetailPage({
                   <div className="space-y-1">
                     <div className="text-sm text-slate-500">Travel Costs</div>
                     <div className="text-lg font-semibold">
-                      ₹{travelCosts.toLocaleString("en-IN", {
+                      ₹
+                      {travelCosts.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -210,7 +215,8 @@ export default async function OrderDetailPage({
                       Miscellaneous Cost
                     </div>
                     <div className="text-lg font-semibold">
-                      ₹{miscellaneousCost.toLocaleString("en-IN", {
+                      ₹
+                      {miscellaneousCost.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -226,7 +232,8 @@ export default async function OrderDetailPage({
                   <div className="flex justify-between">
                     <span className="text-sm text-slate-500">Total Costs</span>
                     <span className="font-semibold">
-                      ₹{totalCosts.toLocaleString("en-IN", {
+                      ₹
+                      {totalCosts.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -235,7 +242,8 @@ export default async function OrderDetailPage({
                   <div className="flex justify-between">
                     <span className="text-sm text-slate-500">Revenue</span>
                     <span className="font-semibold">
-                      ₹{revenue.toLocaleString("en-IN", {
+                      ₹
+                      {revenue.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -250,7 +258,8 @@ export default async function OrderDetailPage({
                           : "text-red-600 dark:text-red-400"
                       }`}
                     >
-                      ₹{profit.toLocaleString("en-IN", {
+                      ₹
+                      {profit.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}

@@ -33,18 +33,21 @@ interface DashboardPageProps {
     duration?: string;
     startDate?: string;
     endDate?: string;
+    tzOffsetMinutes?: string;
   }>;
 }
 
 async function getDashboardData(
   duration?: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  tzOffsetMinutes?: string
 ): Promise<DashboardData> {
   const params = new URLSearchParams();
   if (duration) params.set("duration", duration);
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
+  if (tzOffsetMinutes) params.set("tzOffsetMinutes", tzOffsetMinutes);
 
   const queryString = params.toString();
   const url = `/api/admin/dashboard${queryString ? `?${queryString}` : ""}`;
@@ -72,12 +75,14 @@ async function getDashboardData(
 async function getAllOrders(
   duration?: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  tzOffsetMinutes?: string
 ): Promise<TOrderSummary[]> {
   const params = new URLSearchParams();
   if (duration) params.set("duration", duration);
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
+  if (tzOffsetMinutes) params.set("tzOffsetMinutes", tzOffsetMinutes);
 
   const queryString = params.toString();
   const url = `/admin/orders${queryString ? `?${queryString}` : ""}`;
@@ -99,8 +104,18 @@ export default async function DashboardPage({
   try {
     const params = await searchParams;
     const [data, orders] = await Promise.all([
-      getDashboardData(params.duration, params.startDate, params.endDate),
-      getAllOrders(params.duration, params.startDate, params.endDate),
+      getDashboardData(
+        params.duration,
+        params.startDate,
+        params.endDate,
+        params.tzOffsetMinutes
+      ),
+      getAllOrders(
+        params.duration,
+        params.startDate,
+        params.endDate,
+        params.tzOffsetMinutes
+      ),
     ]);
     const { summary } = data;
 
