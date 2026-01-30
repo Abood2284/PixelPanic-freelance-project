@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, MapPin, Phone, Calendar, Package } from "lucide-react";
 import Link from "next/link";
+import { formatOrderDateTime } from "@/lib/utils";
 
 interface OrderItem {
   id: number;
@@ -55,16 +56,9 @@ function getStatusBadgeVariant(status: string) {
   }
 }
 
-// Helper function to format date
+// Helper function to format date - uses UTC parsing and IST formatting for consistency
 function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat("en-IN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatOrderDateTime(dateString);
 }
 
 export default function OrderHistoryPage() {

@@ -1,7 +1,6 @@
 // apps/pixel-panic-web/app/(admin)/dashboard/page.tsx
 
 import {
-  IconCurrencyRupee,
   IconTools,
   IconClockHour4,
   IconShoppingCart,
@@ -11,6 +10,8 @@ import { StatCard } from "../components/stat-card";
 import { OrdersTable } from "../components/orders-table";
 import { UnauthorizedState } from "../components/unauthorized-state";
 import { LoggedInToast } from "@/app/(admin)/admin/components/logged-in-toast";
+import { RevenueProfitCard } from "../components/revenue-profit-card";
+import { DashboardDateFilter } from "../components/dashboard-date-filter";
 import { TOrderSummary } from "@/types/admin";
 import { apiFetch } from "@/server";
 
@@ -18,17 +19,38 @@ export const dynamic = "force-dynamic";
 
 interface DashboardData {
   summary: {
-    monthlyRevenue: number;
+    revenue: number;
+    profit: number;
+    totalCosts: number;
     completedJobs: number;
     pendingOrders: number;
     averageRepairTimeMinutes: number;
   };
-  recentOrders: TOrderSummary[];
 }
 
-async function getDashboardData(): Promise<DashboardData> {
+interface DashboardPageProps {
+  searchParams: Promise<{
+    duration?: string;
+    startDate?: string;
+    endDate?: string;
+  }>;
+}
+
+async function getDashboardData(
+  duration?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<DashboardData> {
+  const params = new URLSearchParams();
+  if (duration) params.set("duration", duration);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+
+  const queryString = params.toString();
+  const url = `/api/admin/dashboard${queryString ? `?${queryString}` : ""}`;
+
   // Use relative path so Next rewrites proxy to worker in prod and dev
-  const response = await apiFetch(`/api/admin/dashboard`, {
+  const response = await apiFetch(url, {
     next: { revalidate: 300 },
   });
 
@@ -47,58 +69,94 @@ async function getDashboardData(): Promise<DashboardData> {
   return response.json();
 }
 
-export default async function DashboardPage() {
+async function getAllOrders(
+  duration?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<TOrderSummary[]> {
+  const params = new URLSearchParams();
+  if (duration) params.set("duration", duration);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+
+  const queryString = params.toString();
+  const url = `/admin/orders${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiFetch(url, {
+    next: { revalidate: 300 },
+  });
+
+  if (response.status === 401) throw new Error("UNAUTHORIZED");
+  if (response.status === 403) throw new Error("FORBIDDEN");
+  if (!response.ok) throw new Error("Failed to fetch orders.");
+
+  return response.json();
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
   try {
-    const data = await getDashboardData();
-    const { summary, recentOrders } = data;
+    const params = await searchParams;
+    const [data, orders] = await Promise.all([
+      getDashboardData(params.duration, params.startDate, params.endDate),
+      getAllOrders(params.duration, params.startDate, params.endDate),
+    ]);
+    const { summary } = data;
 
     return (
       <div className="flex flex-col gap-8">
         <LoggedInToast />
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-          Dashboard Overview
-        </h1>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+            Dashboard Overview
+          </h1>
+          <Suspense fallback={<div className="h-10 w-64" />}>
+            <DashboardDateFilter />
+          </Suspense>
+        </div>
 
         {/* KPI Cards Section */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Revenue (Last 30d)"
-            value={`₹${summary.monthlyRevenue.toLocaleString("en-IN")}`}
-            icon={
-              <IconCurrencyRupee className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-            }
+          <RevenueProfitCard
+            revenue={summary.revenue}
+            profit={summary.profit}
+            totalCosts={summary.totalCosts}
           />
           <StatCard
-            title="Completed Jobs (30d)"
+            title="Completed Jobs"
             value={summary.completedJobs.toString()}
             icon={
-              <IconTools className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <IconTools className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             }
           />
           <StatCard
-            title="New Pending Orders"
+            title="Pending Orders"
             value={summary.pendingOrders.toString()}
             icon={
-              <IconShoppingCart className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <IconShoppingCart className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             }
           />
           <StatCard
             title="Average Repair Time"
             value={`${summary.averageRepairTimeMinutes} min`}
             icon={
-              <IconClockHour4 className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <IconClockHour4 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             }
           />
         </div>
 
-        {/* Recent Orders Section */}
+        {/* Orders Section */}
         <div className="mt-8">
           <h2 className="mb-4 text-2xl font-semibold text-slate-800 dark:text-slate-100">
-            Recent Orders
+            Orders
           </h2>
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-neutral-900">
-            <Suspense fallback={<p>Loading recent orders...</p>}>
-              <OrdersTable orders={recentOrders} />
+          <div className="md:overflow-hidden md:rounded-lg md:border md:border-slate-200 md:bg-white md:shadow-sm md:dark:border-slate-800 md:dark:bg-neutral-900">
+            <Suspense fallback={<p>Loading orders...</p>}>
+              <OrdersTable
+                orders={orders}
+                lazyRender={{ initialCount: 25, pageSize: 25 }}
+              />
             </Suspense>
           </div>
         </div>

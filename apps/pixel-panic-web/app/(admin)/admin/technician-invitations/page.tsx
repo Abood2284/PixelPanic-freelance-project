@@ -18,6 +18,7 @@ import React from "react";
 import { CopyButton } from "@/components/admin/copy-button";
 import { apiFetch } from "@/server";
 import { requireAdmin } from "@/lib/auth-middleware";
+import { formatOrderDateTime } from "@/lib/utils";
 
 const InviteSchema = z.object({
   phoneNumber: z.string().min(8).max(32),
@@ -127,7 +128,7 @@ export default async function TechnicianInvitationsPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {new Date(i.expiresAt).toLocaleString()}
+                    {formatOrderDateTime(i.expiresAt)}
                   </TableCell>
                   <TableCell className="space-x-2">
                     <CopyButton text={link} />

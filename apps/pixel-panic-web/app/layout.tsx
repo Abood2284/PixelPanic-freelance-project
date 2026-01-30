@@ -1,17 +1,17 @@
 // apps/pixel-panic-web/app/layout.tsx
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import Script from "next/script";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 import { CartProvider } from "@/context/CartProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { ptSerif, yeagerOne } from "@/public/fonts/fonts";
+import { spaceGrotesk, inter } from "@/public/fonts/fonts";
 import { AuthModal } from "@/components/shared/AuthModal";
-import { ScrollTrigger } from "gsap/all";
-import gsap from "gsap";
 import GSAPProvider from "@/components/gsap/GSAPProvider";
 import { DevIndicator } from "@/components/dev/dev-indicator";
-
-gsap.registerPlugin(ScrollTrigger);
+import TargetCursor from "@/components/TargetCursor";
+import { AnalyticsRouteListener } from "@/components/analytics/route-listener";
 
 export const metadata: Metadata = {
   title: "Mobile Repair in Mumbai – PixelPanic Doorstep & Store",
@@ -25,13 +25,7 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html
-      lang="en"
-      className={`
-      ${yeagerOne.className}
-      ${ptSerif.className}
-    `}
-    >
+    <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable}`}>
       <head>
         {/* Google Tag Manager */}
         <script
@@ -41,6 +35,20 @@ export default function RootLayout({ children }: RootLayoutProps) {
           }}
         />
         {/* End Google Tag Manager */}
+        {/* Google Ads Global site tag (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17515114413"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads-gtag" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || []
+            function gtag(){dataLayer.push(arguments)}
+            gtag('js', new Date())
+            gtag('config', 'AW-17515114413')
+          `}
+        </Script>
+        {/* End Google Ads Global site tag (gtag.js) */}
         {/* Preconnect to your asset CDN/bucket for the fastest handshake (DNS + TLS) */}
         <link
           rel="preconnect"
@@ -71,6 +79,18 @@ export default function RootLayout({ children }: RootLayoutProps) {
           type="video/mp4"
           crossOrigin="anonymous"
         />
+        {/* Contentsquare/Hotjar */}
+        <link
+          rel="preconnect"
+          href="https://t.contentsquare.net"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="//t.contentsquare.net" />
+        <Script
+          id="hotjar-csq"
+          src="https://t.contentsquare.net/uxa/344bdaf489b7a.js"
+          strategy="afterInteractive"
+        />
       </head>
       <body className={cn("min-h-screen bg-background antialiased")}>
         {/* Google Tag Manager (noscript) */}
@@ -83,10 +103,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
           />
         </noscript>
         {/* End Google Tag Manager (noscript) */}
+        <Suspense fallback={null}>
+          <AnalyticsRouteListener />
+        </Suspense>
         <GSAPProvider>
           <div>
             <AuthModal />
-            <CartProvider>{children}</CartProvider>
+            <CartProvider>
+              <TargetCursor />
+              {children}
+            </CartProvider>
           </div>
         </GSAPProvider>
         <Toaster />

@@ -7,7 +7,6 @@ import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import checkoutRoutes from "./routes/checkout";
-import adminRoutes from "./routes/admin";
 import modelsRoutes from "./routes/models";
 import brandsRoutes from "./routes/brands";
 import servicesRoutes from "./routes/services";
@@ -16,6 +15,8 @@ import techniciansRoutes from "./routes/technicians";
 import ordersRoutes from "./routes/orders";
 import contactRoutes from "./routes/contact";
 import contactFormsRoutes from "./routes/contact-forms";
+import smsRoutes from "./routes/sms";
+import { adminRoutes } from "./routes/admin";
 
 export interface Env {
   NODE_ENV: string;
@@ -95,6 +96,7 @@ const configureCORS = () => {
   const allowedOrigins = [
     "http://localhost:3000",
     "http://192.168.1.5:3000",
+    "http://192.168.29.4:3000",
     "http://192.168.1.8:3000",
     "https://pixelpanic.co",
     "https://www.pixelpanic.co",
@@ -161,6 +163,7 @@ app.route("/api/technicians", techniciansRoutes);
 app.route("/api/orders", ordersRoutes);
 app.route("/api/contact", contactRoutes);
 app.route("/api/contact-forms", contactFormsRoutes);
+app.route("/api", smsRoutes);
 
 app.get("/", async (c) => {
   return c.json({ status: 200, message: "Healthy All System Working" });

@@ -275,7 +275,7 @@ export function ProcessStepper() {
                           step.color
                         )}
                       >
-                        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm" />
+                        <div className="absolute inset-0 bg-white/20 bg-black/30" />
                         <div className="relative w-full h-full p-2 sm:p-3 md:p-4 lg:p-6">
                           <Image
                             src={step.image}

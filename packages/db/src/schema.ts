@@ -1,3 +1,4 @@
+// packages/db/src/schema.ts
 import { relations } from "drizzle-orm";
 import {
   timestamp,
@@ -107,9 +108,10 @@ export const orders = pgTable("orders", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  technicianId: text("technician_id").references(() => users.id, {
-    onDelete: "set null",
-  }),
+  technicianId: text("technician_id")
+    .references(() => users.id, {
+      onDelete: "restrict",
+    }),
   status: orderStatusEnum("status").default("pending_payment").notNull(),
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
   serviceMode: serviceModeEnum("service_mode").notNull(),
@@ -124,6 +126,16 @@ export const orders = pgTable("orders", {
     precision: 10,
     scale: 2,
   }).default("0"),
+  // Cost tracking fields
+  partPrice: numeric("part_price", { precision: 10, scale: 2 }),
+  travelCosts: numeric("travel_costs", { precision: 10, scale: 2 }),
+  miscellaneousCost: numeric("miscellaneous_cost", { precision: 10, scale: 2 }),
+  miscellaneousDescription: text("miscellaneous_description"),
+  // Completion tracking
+  completedAt: timestamp("completed_at"),
+  completedBy: text("completed_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -431,6 +443,10 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   }),
   technician: one(users, {
     fields: [orders.technicianId],
+    references: [users.id],
+  }),
+  completedByUser: one(users, {
+    fields: [orders.completedBy],
     references: [users.id],
   }),
   orderItems: many(orderItems),

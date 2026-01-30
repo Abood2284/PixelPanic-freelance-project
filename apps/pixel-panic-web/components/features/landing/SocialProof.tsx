@@ -22,19 +22,19 @@ const VIDEO_TESTIMONIALS: VideoTestimonial[] = [
     name: "Priya R.",
     location: "Andheri East, Mumbai",
     videoSrc: "/videos/pixel-panic-video-1.mp4",
-    posterSrc: "/images/testimonial-3.png",
+    posterSrc: "/images/pixel-panic-image-1.png",
   },
   {
     name: "Amit S.",
     location: "Bandra, Mumbai",
     videoSrc: "/videos/pixel-panic-video-2.mp4",
-    posterSrc: "/images/testimonial-1.png",
+    posterSrc: "/images/pixel-panic-image-2.png",
   },
   {
-    name: "Meera K.",
+    name: "Rahul K.",
     location: "Powai, Mumbai",
     videoSrc: "/videos/pixel-panic-video-3.mp4",
-    posterSrc: "/images/testimonial-2.png",
+    posterSrc: "/images/pixel-panic-image-3.png",
   },
 ];
 
@@ -60,19 +60,19 @@ function VideoLightbox({ testimonial, onClose }: VideoLightboxProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 bg-black/30"
       onClick={onClose}
     >
       <div
         className="relative w-full max-w-lg p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <video
+        <video preload="metadata"
           src={testimonial.videoSrc}
           poster={testimonial.posterSrc}
           className="w-full h-auto max-h-[85vh] rounded-lg"
           controls
-          autoPlay
+
           loop
         />
         <button
@@ -117,7 +117,7 @@ function VideoCard({ testimonial, onClick, index }: VideoCardProps) {
       // }}
       onClick={onClick}
     >
-      <div className="relative w-full h-full rounded-2xl bg-white shadow-2xl overflow-hidden backdrop-blur-sm border border-white/20">
+      <div className="relative w-full h-full rounded-2xl bg-white shadow-2xl overflow-hidden bg-black/30 border border-white/20">
         <Image
           src={testimonial.posterSrc}
           alt={`Testimonial from ${testimonial.name}`}

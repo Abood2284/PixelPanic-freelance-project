@@ -13,6 +13,8 @@ import {
 } from "@tabler/icons-react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import { AdminLogoutLink } from "@/components/admin/logout-link";
+import { cn } from "@/lib/utils";
+import { inter, spaceGrotesk } from "@/public/fonts/fonts";
 
 // Define the links that will appear in the sidebar.
 const links = [
@@ -106,7 +108,13 @@ export default function AdminLayout({
 }) {
   return (
     // The main container uses flex to position the sidebar and content side-by-side.
-    <div className="flex min-h-screen w-full flex-col bg-slate-100 dark:bg-neutral-950 md:flex-row">
+    <div
+      className={cn(
+        "admin-fonts flex min-h-screen w-full flex-col bg-slate-100 dark:bg-neutral-950 md:flex-row font-sans",
+        inter.variable,
+        spaceGrotesk.variable,
+      )}
+    >
       <Sidebar>
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-1 flex-col">

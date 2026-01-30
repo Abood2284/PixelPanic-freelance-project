@@ -2,7 +2,7 @@
 
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, sql, lte } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { createMiddleware } from "hono/factory";
 
@@ -26,7 +26,7 @@ import { desc } from "drizzle-orm";
 import { z } from "zod";
 import { verifyAuth } from "./auth";
 
-const adminRoutes = new Hono<{
+export const adminRoutes = new Hono<{
   Bindings: Env;
   Variables: { userId: string };
 }>();
@@ -219,9 +219,38 @@ adminRoutes.get("/orders/:id", async (c) => {
     const orderData = await c.req.db.query.orders.findFirst({
       where: eq(schema.orders.id, orderId),
       with: {
-        user: true,
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            email: true,
+          },
+        },
         address: true,
         orderItems: true,
+        technician: {
+          columns: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+          },
+        },
+        completedByUser: {
+          columns: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+          },
+        },
+        appliedCoupon: {
+          columns: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+          },
+        },
       },
     });
 
@@ -243,9 +272,56 @@ adminRoutes.get("/orders/:id", async (c) => {
  * Fetches all orders for the main orders page.
  * NOTE: For a production app with many orders, this should be paginated.
  */
-adminRoutes.get("/orders", async (c) => {
+adminRoutes.get("/orders", requireAdmin, async (c) => {
   try {
+    const duration = c.req.query("duration") || "today";
+    let startDate: Date;
+    let endDate: Date;
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    if (duration === "today") {
+      startDate = todayStart;
+      endDate = todayEnd;
+    } else if (duration === "yesterday") {
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      const yesterdayEnd = new Date(yesterdayStart);
+      yesterdayEnd.setHours(23, 59, 59, 999);
+      startDate = yesterdayStart;
+      endDate = yesterdayEnd;
+    } else if (duration === "custom") {
+      const startDateStr = c.req.query("startDate");
+      const endDateStr = c.req.query("endDate");
+      if (!startDateStr || !endDateStr) {
+        throw new HTTPException(400, {
+          message: "startDate and endDate are required when duration is 'custom'",
+        });
+      }
+      startDate = new Date(startDateStr);
+      endDate = new Date(endDateStr);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        throw new HTTPException(400, { message: "Invalid date range." });
+      }
+      if (endDate < startDate) {
+        throw new HTTPException(400, {
+          message: "endDate must be on or after startDate",
+        });
+      }
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate = todayStart;
+      endDate = todayEnd;
+    }
+
     const allOrders = await c.req.db.query.orders.findMany({
+      where: and(
+        gte(orders.createdAt, startDate),
+        lte(orders.createdAt, endDate)
+      ),
       orderBy: [desc(orders.createdAt)],
       with: {
         user: {
@@ -254,13 +330,25 @@ adminRoutes.get("/orders", async (c) => {
             phoneNumber: true,
           },
         },
+        technician: {
+          columns: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+          },
+        },
       },
     });
     return c.json(allOrders);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to fetch all orders:", error);
+    // Provide more detailed error in development
+    const errorMessage =
+      c.env.NODE_ENV === "development"
+        ? `Could not retrieve orders: ${error.message || String(error)}`
+        : "Could not retrieve orders.";
     throw new HTTPException(500, {
-      message: "Could not retrieve orders.",
+      message: errorMessage,
     });
   }
 });
@@ -268,37 +356,91 @@ adminRoutes.get("/orders", async (c) => {
 /**
  * GET /api/admin/dashboard
  * Fetches summary statistics and recent orders for the admin dashboard.
+ * Query params: duration (today|yesterday|custom), startDate, endDate
  */
 adminRoutes.get("/dashboard", async (c) => {
   try {
     const db = c.req.db;
 
-    // --- 1. Fetch Summary Statistics ---
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Parse query parameters for date filtering
+    const duration = c.req.query("duration") || "today";
+    let startDate: Date;
+    let endDate: Date;
 
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    if (duration === "today") {
+      startDate = todayStart;
+      endDate = todayEnd;
+    } else if (duration === "yesterday") {
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      const yesterdayEnd = new Date(yesterdayStart);
+      yesterdayEnd.setHours(23, 59, 59, 999);
+      startDate = yesterdayStart;
+      endDate = yesterdayEnd;
+    } else if (duration === "custom") {
+      const startDateStr = c.req.query("startDate");
+      const endDateStr = c.req.query("endDate");
+      if (!startDateStr || !endDateStr) {
+        throw new HTTPException(400, {
+          message: "startDate and endDate are required when duration is 'custom'",
+        });
+      }
+      startDate = new Date(startDateStr);
+      endDate = new Date(endDateStr);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // Default to today
+      startDate = todayStart;
+      endDate = todayEnd;
+    }
+
+    // --- 1. Fetch Summary Statistics for completed orders in date range ---
+    // Filter completed orders by completedAt date
     const statsQuery = await db
       .select({
-        monthlyRevenue:
-          sql`SUM(CASE WHEN ${orders.status} = 'completed' THEN ${orders.totalAmount} ELSE 0 END)`.as(
-            "monthly_revenue"
-          ),
+        revenue:
+          sql`SUM(${orders.totalAmount})`.as("revenue"),
+        totalCosts:
+          sql`COALESCE(SUM(${orders.partPrice}), 0) + 
+            COALESCE(SUM(${orders.travelCosts}), 0) + 
+            COALESCE(SUM(${orders.miscellaneousCost}), 0)`.as("total_costs"),
         completedJobs:
-          sql`COUNT(CASE WHEN ${orders.status} = 'completed' THEN 1 END)`.as(
-            "completed_jobs"
-          ),
-        pendingOrders:
-          sql`COUNT(CASE WHEN ${orders.status} IN ('confirmed', 'in_progress') THEN 1 END)`.as(
-            "pending_orders"
-          ),
+          sql`COUNT(*)`.as("completed_jobs"),
       })
       .from(orders)
-      .where(gte(orders.createdAt, thirtyDaysAgo));
+      .where(
+        and(
+          eq(orders.status, "completed"),
+          gte(orders.completedAt, startDate),
+          lte(orders.completedAt, endDate)
+        )
+      );
+
+    const revenue = Number(statsQuery[0]?.revenue) || 0;
+    const totalCosts = Number(statsQuery[0]?.totalCosts) || 0;
+    const profit = revenue - totalCosts;
+
+    // Get pending orders count (not filtered by date)
+    const pendingOrdersQuery = await db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(orders)
+      .where(
+        sql`${orders.status} IN ('confirmed', 'in_progress')`
+      );
 
     const summary = {
-      monthlyRevenue: Number(statsQuery[0]?.monthlyRevenue) || 0,
+      revenue,
+      profit,
+      totalCosts,
       completedJobs: Number(statsQuery[0]?.completedJobs) || 0,
-      pendingOrders: Number(statsQuery[0]?.pendingOrders) || 0,
+      pendingOrders: Number(pendingOrdersQuery[0]?.count) || 0,
       // NOTE: Average repair time is a complex metric not yet tracked in the DB.
       // We will return a static value as a placeholder.
       averageRepairTimeMinutes: 85,
@@ -321,6 +463,9 @@ adminRoutes.get("/dashboard", async (c) => {
     return c.json({ summary, recentOrders });
   } catch (error) {
     console.error("Failed to fetch dashboard data:", error);
+    if (error instanceof HTTPException) {
+      throw error;
+    }
     throw new HTTPException(500, {
       message: "Could not retrieve dashboard data.",
     });
@@ -796,15 +941,181 @@ adminRoutes.patch("/contact-messages/:id", async (c) => {
   }
 });
 
-export default adminRoutes;
+// ============================================================================
+// TECHNICIAN MANAGEMENT ENDPOINTS
+// ============================================================================
 
-// List technicians for assignment
-adminRoutes.get("/technicians", async (c) => {
-  const list = await c.req.db.query.users.findMany({
-    where: (u, { eq }) => eq(u.role, "technician"),
-    columns: { id: true, name: true, phoneNumber: true },
-  });
-  return c.json(list);
+/**
+ * GET /api/admin/technicians
+ * Fetches all technicians with their status and basic info for the technicians management page.
+ */
+adminRoutes.get("/technicians", requireAdmin, async (c) => {
+  try {
+    // Query technicians table directly and join with users
+    // This includes all users with technician records, regardless of their role
+    const technicianRecords = await c.req.db.query.technicians.findMany({
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+
+    // Transform to match TTechnicianSummary type
+    const technicians = technicianRecords.map((techRecord) => {
+      const user = techRecord.user;
+      const status = techRecord.status || "active";
+
+      // Generate avatar URL from name or use placeholder
+      const avatarName = user.name || user.phoneNumber || "Technician";
+      const imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        avatarName
+      )}&background=6366f1&color=fff&size=128`;
+
+      return {
+        id: user.id,
+        name: user.name || "Unnamed Technician",
+        phoneNumber: user.phoneNumber,
+        status: status as "active" | "on_leave" | "inactive",
+        avgCompletionTimeMinutes: 0, // TODO: Calculate from completed orders
+        rating: 0, // TODO: Calculate from reviews/ratings
+        imageUrl,
+      };
+    });
+
+    return c.json(technicians);
+  } catch (error) {
+    console.error("Failed to fetch technicians:", error);
+    throw new HTTPException(500, {
+      message: "Could not retrieve technicians.",
+    });
+  }
+});
+
+/**
+ * POST /api/admin/technicians
+ * Creates a new technician directly (bypasses invitation system for admin convenience).
+ * Body: { phoneNumber: string, name?: string }
+ */
+adminRoutes.post("/technicians", requireAdmin, async (c) => {
+  const body = await c.req.json();
+  const { phoneNumber, name } = body;
+
+  if (!phoneNumber || typeof phoneNumber !== "string") {
+    throw new HTTPException(400, {
+      message: "Phone number is required",
+    });
+  }
+
+  // Clean and validate phone number format (basic validation)
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const phoneRegex = /^[0-9]{10}$/;
+  if (!phoneRegex.test(cleanPhone)) {
+    throw new HTTPException(400, {
+      message: "Invalid phone number format. Must be 10 digits.",
+    });
+  }
+
+  const pool = createDbPool(c.env.DATABASE_URL);
+  const db = drizzle(pool, { schema });
+
+  try {
+    // Check if user already exists
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.phoneNumber, cleanPhone),
+    });
+
+    let userId: string;
+
+    if (existingUser) {
+      // If user is an admin, keep their admin role (admins can also be technicians)
+      // Only change role to technician if they're not admin and not already technician
+      if (existingUser.role === "admin") {
+        // Admin users keep their admin role - they can do everything technicians can do
+        // Just update name if provided
+        if (name) {
+          await db
+            .update(users)
+            .set({ name })
+            .where(eq(users.id, existingUser.id));
+        }
+      } else if (existingUser.role !== "technician") {
+        // User is neither admin nor technician, change to technician
+        await db
+          .update(users)
+          .set({ role: "technician", name: name || existingUser.name })
+          .where(eq(users.id, existingUser.id));
+      } else {
+        // Already a technician, just update name if provided
+        if (name) {
+          await db
+            .update(users)
+            .set({ name })
+            .where(eq(users.id, existingUser.id));
+        }
+      }
+      userId = existingUser.id;
+    } else {
+      // Create new user with technician role
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: cleanPhone,
+          name: name || null,
+          role: "technician",
+        })
+        .returning();
+      userId = newUser.id;
+    }
+
+    // Check if technician record already exists
+    const existingTechnician = await db.query.technicians.findFirst({
+      where: eq(technicians.userId, userId),
+    });
+
+    if (!existingTechnician) {
+      // Create technician record
+      await db.insert(technicians).values({
+        userId,
+        status: "active",
+      });
+    }
+
+    // Fetch the created/updated technician
+    const technician = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: {
+        id: true,
+        name: true,
+        phoneNumber: true,
+      },
+    });
+
+    return c.json({
+      ok: true,
+      technician,
+      message: existingUser
+        ? "User updated to technician"
+        : "Technician created successfully",
+    });
+  } catch (error: any) {
+    console.error("Failed to create technician:", error);
+    if (error.code === "23505") {
+      // Unique constraint violation
+      throw new HTTPException(409, {
+        message: "A user with this phone number already exists",
+      });
+    }
+    throw new HTTPException(500, {
+      message: "Failed to create technician",
+    });
+  } finally {
+    await pool.end();
+  }
 });
 
 // NOTE: Legacy technician applications endpoints removed. We now use invitation-based onboarding.
@@ -863,15 +1174,21 @@ adminRoutes.post("/assign-order", async (c) => {
     });
   }
 
-  // Ensure technician exists and has the correct role
-  const technician = await c.req.db.query.users.findFirst({
-    where: and(eq(users.id, technicianId), eq(users.role, "technician")),
+  // Ensure technician exists: check if user has technician record OR is admin
+  const technicianRecord = await c.req.db.query.technicians.findFirst({
+    where: eq(technicians.userId, technicianId),
     columns: { id: true },
   });
 
-  if (!technician) {
+  const user = await c.req.db.query.users.findFirst({
+    where: eq(users.id, technicianId),
+    columns: { id: true, role: true },
+  });
+
+  // Allow if user has technician record OR is admin (admins have full power)
+  if (!technicianRecord && user?.role !== "admin") {
     throw new HTTPException(404, {
-      message: "Technician not found or invalid role",
+      message: "Technician not found or invalid",
     });
   }
 
@@ -909,6 +1226,123 @@ adminRoutes.post("/assign-order", async (c) => {
     technicianId,
     completionOtp: otp,
     expiresAt,
+  });
+});
+
+/**
+ * POST /api/admin/orders/:id/complete-with-costs
+ * Marks an order as complete with cost tracking and calculates profit.
+ * Body: { partPrice: number, travelCosts: number, miscellaneousCost: number, miscellaneousDescription?: string }
+ */
+adminRoutes.post("/orders/:id/complete-with-costs", requireAdmin, async (c) => {
+  const orderId = parseInt(c.req.param("id"), 10);
+  if (isNaN(orderId)) {
+    throw new HTTPException(400, { message: "Invalid order ID" });
+  }
+
+  const userId = c.get("userId");
+  const body = await c.req.json();
+
+  // Validation schema
+  const completeOrderSchema = z.object({
+    partPrice: z.number().min(0, "Part price must be non-negative"),
+    travelCosts: z.number().min(0, "Travel costs must be non-negative"),
+    miscellaneousCost: z.number().min(0, "Miscellaneous cost must be non-negative"),
+    miscellaneousDescription: z.string().optional(),
+  });
+
+  const validation = completeOrderSchema.safeParse(body);
+  if (!validation.success) {
+    throw new HTTPException(400, {
+      message: "Invalid request data",
+      cause: validation.error.flatten().fieldErrors,
+    });
+  }
+
+  const { partPrice, travelCosts, miscellaneousCost, miscellaneousDescription } =
+    validation.data;
+
+  // Validate miscellaneousDescription is required if miscellaneousCost > 0
+  if (miscellaneousCost > 0 && !miscellaneousDescription?.trim()) {
+    throw new HTTPException(400, {
+      message: "Miscellaneous description is required when miscellaneous cost is greater than 0",
+    });
+  }
+
+  // Fetch order to validate
+  const order = await c.req.db.query.orders.findFirst({
+    where: eq(orders.id, orderId),
+    columns: {
+      id: true,
+      status: true,
+      technicianId: true,
+      totalAmount: true,
+    },
+  });
+
+  if (!order) {
+    throw new HTTPException(404, { message: "Order not found" });
+  }
+
+  if (!order.technicianId) {
+    throw new HTTPException(400, {
+      message: "Order must have a technician assigned before completion",
+    });
+  }
+
+  if (order.status === "completed") {
+    throw new HTTPException(409, {
+      message: "Order is already completed",
+    });
+  }
+
+  if (!["in_progress", "confirmed"].includes(order.status)) {
+    throw new HTTPException(400, {
+      message: "Order must be in 'in_progress' or 'confirmed' status to be completed",
+    });
+  }
+
+  // Calculate profit
+  const totalCosts =
+    Number(partPrice) + Number(travelCosts) + Number(miscellaneousCost);
+  const revenue = Number(order.totalAmount);
+  const profit = revenue - totalCosts;
+
+  // Handle completedBy: In dev mode, if userId is fake, find a real admin or set to null
+  let completedByUserId: string | null = userId;
+  if (
+    c.env.NODE_ENV === "development" &&
+    userId === "dev-admin-user-id"
+  ) {
+    // Try to find a real admin user in the database
+    const adminUser = await c.req.db.query.users.findFirst({
+      where: eq(users.role, "admin"),
+      columns: { id: true },
+    });
+    completedByUserId = adminUser?.id || null;
+  }
+
+  // Update order
+  await c.req.db
+    .update(orders)
+    .set({
+      status: "completed",
+      partPrice: partPrice.toString(),
+      travelCosts: travelCosts.toString(),
+      miscellaneousCost: miscellaneousCost.toString(),
+      miscellaneousDescription: miscellaneousDescription?.trim() || null,
+      completedAt: new Date(),
+      completedBy: completedByUserId,
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.id, orderId));
+
+  return c.json({
+    ok: true,
+    orderId,
+    revenue,
+    totalCosts,
+    profit,
   });
 });
 

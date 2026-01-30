@@ -48,10 +48,10 @@ export default function SupportPage() {
               availability, confirm pricing, or reschedule your slot in minutes.
             </p>
             <a
-              href="tel:+919999999999"
+              href="tel:+919326108547"
               className="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-orange-600 transition"
             >
-              +91 99999 99999
+              +91 93261 08547
             </a>
             <p className="text-xs text-slate-500 mt-3">
               Lines open 9:00 AM – 9:00 PM, Monday to Sunday.
@@ -68,7 +68,7 @@ export default function SupportPage() {
               commutes.
             </p>
             <a
-              href="https://wa.me/919999999999"
+              href="https://wa.me/919326108547"
               className="inline-flex items-center justify-center rounded-full bg-green-500 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-green-600 transition"
             >
               Message us on WhatsApp

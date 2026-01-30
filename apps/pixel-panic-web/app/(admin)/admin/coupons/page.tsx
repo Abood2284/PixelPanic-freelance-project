@@ -8,6 +8,7 @@ import { IconPlus, IconTicket } from "@tabler/icons-react";
 import Link from "next/link";
 import { apiFetch } from "@/server";
 import { TCouponSummary, TCouponUsageStats } from "@/types/admin";
+import { formatOrderDate } from "@/lib/utils";
 
 interface CouponsData {
   coupons: TCouponSummary[];
@@ -140,7 +141,7 @@ function CouponsTable({ coupons }: { coupons: TCouponSummary[] }) {
               </td>
               <td className="py-3 px-4">
                 <div className="text-sm">
-                  {new Date(coupon.validUntil).toLocaleDateString()}
+                  {formatOrderDate(coupon.validUntil)}
                 </div>
               </td>
               <td className="py-3 px-4">

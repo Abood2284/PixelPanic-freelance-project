@@ -9,6 +9,9 @@ export type TOrderSummary = {
     | "cancelled";
   totalAmount: string;
   createdAt: string;
+  serviceMode: "doorstep" | "carry_in";
+  timeSlot: string | null;
+  technicianId?: string | null;
   user: {
     name: string | null;
     phoneNumber: string;
@@ -25,8 +28,37 @@ export type TOrderDetail = {
     | "completed"
     | "cancelled";
   totalAmount: string;
+  discountAmount: string;
   serviceMode: "doorstep" | "carry_in";
   timeSlot: string | null;
+  technicianId: string;
+  technician: {
+    id: string;
+    name: string | null;
+    phoneNumber: string | null;
+  };
+  technicianNotes: string | null;
+  completionOtp: string | null;
+  completionOtpExpiresAt: string | null;
+  appliedCoupon:
+    | {
+        id: number;
+        code: string;
+        name: string;
+        type: TCouponType;
+      }
+    | null;
+  // Cost tracking fields
+  partPrice: string | null;
+  travelCosts: string | null;
+  miscellaneousCost: string | null;
+  miscellaneousDescription: string | null;
+  completedAt: string | null;
+  completedByUser: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+  } | null;
   createdAt: string;
   user: {
     name: string | null;
@@ -37,9 +69,10 @@ export type TOrderDetail = {
     fullName: string;
     phoneNumber: string;
     email: string | null;
-    pincode: string;
+    pincode?: string | null;
     flatAndStreet: string;
     landmark: string | null;
+    alternatePhoneNumber?: string | null;
   } | null; // Address can be null for 'carry_in' orders
   orderItems: {
     id: number;

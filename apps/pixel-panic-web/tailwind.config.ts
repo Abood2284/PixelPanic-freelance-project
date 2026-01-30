@@ -18,8 +18,29 @@ const config = {
     },
     extend: {
       fontFamily: {
-        yeager: [`var(--yeager-one-font)`, "yeager-one"],
-        "pt-serif": [`var(--pt-serif-font)`, "pt-serif"],
+        display: [
+          "var(--font-display)",
+          "system-ui",
+          "sans-serif",
+          "serif",
+        ],
+        sans: [
+          "var(--font-sans)",
+          "system-ui",
+          "sans-serif",
+        ],
+        mono: [
+          "var(--font-plex-mono)",
+          "IBM Plex Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Monaco",
+          "Consolas",
+          "Liberation Mono",
+          "Courier New",
+          "monospace",
+        ],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -27,6 +48,14 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        // Brand Colors
+        "ink-black": "#0B0D0E",
+        "clinic-white": "#F9FAFB",
+        "signal-orange": "#FF5C35",
+        "pixel-cyan": "#06D7F2",
+        "taxi-yellow": "#FFC300",
+        "rail-grey": "#E6E8EB",
+        charcoal: "#2B2F32",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

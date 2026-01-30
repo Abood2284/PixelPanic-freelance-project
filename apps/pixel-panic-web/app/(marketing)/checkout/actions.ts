@@ -1,8 +1,8 @@
+// apps/pixel-panic-web/app/(marketing)/checkout/actions.ts
 "use server";
 
 import { apiFetch } from "@/server";
 import { addressSchema, type AddressFormValues } from "@repo/validators";
-import { redirect } from "next/navigation";
 
 export interface CheckoutFormData {
   customerInfo: AddressFormValues;
@@ -10,6 +10,8 @@ export interface CheckoutFormData {
   total: number;
   serviceMode: string;
   timeSlot?: string;
+  serviceDate?: string;
+  serviceTime?: string;
   appliedCoupon?: {
     id: string;
     discountAmount: string;
@@ -43,7 +45,13 @@ export async function createOrderAction(
     const total = Number(formData.get("total"));
     const serviceMode = formData.get("serviceMode") as string;
     const timeSlot = formData.get("timeSlot") as string;
+    const serviceDate = formData.get("serviceDate") as string;
+    const serviceTime = formData.get("serviceTime") as string;
     const appliedCouponJson = formData.get("appliedCoupon") as string;
+
+    if (!serviceDate || !serviceTime) {
+      throw new Error("Please select a service date and time.");
+    }
 
     const items = JSON.parse(itemsJson);
     const appliedCoupon = appliedCouponJson
@@ -58,6 +66,8 @@ export async function createOrderAction(
       serviceDetails: {
         serviceMode,
         timeSlot,
+        serviceDate,
+        serviceTime,
       },
       appliedCoupon,
     };
@@ -70,10 +80,15 @@ export async function createOrderAction(
     });
 
     if (!response.ok) {
-      const errorData = (await response.json()) as { message?: string };
-      throw new Error(
-        errorData.message || "An error occurred while creating the order."
-      );
+      const errorText = await response.text();
+      let message = "An error occurred while creating the order.";
+      try {
+        const errorData = JSON.parse(errorText) as { message?: string };
+        if (errorData.message) message = errorData.message;
+      } catch {
+        if (errorText) message = errorText;
+      }
+      throw new Error(message);
     }
 
     const responseData = (await response.json()) as {

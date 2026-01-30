@@ -1,6 +1,6 @@
 {
-  "id": "cd0ed15c-01f2-4b2e-a1f7-5cdcb14f3044",
-  "prevId": "d355c7c8-c98c-425b-8ed8-40e5dc75379c",
+  "id": "7e688a66-71e8-439d-9539-6bcda8affe01",
+  "prevId": "cd0ed15c-01f2-4b2e-a1f7-5cdcb14f3044",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -931,7 +931,7 @@
           "name": "technician_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "status": {
           "name": "status",
@@ -991,6 +991,42 @@
           "notNull": false,
           "default": "'0'"
         },
+        "part_price": {
+          "name": "part_price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "travel_costs": {
+          "name": "travel_costs",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "miscellaneous_cost": {
+          "name": "miscellaneous_cost",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "miscellaneous_description": {
+          "name": "miscellaneous_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_by": {
+          "name": "completed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -1031,7 +1067,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "orders_applied_coupon_id_coupons_id_fk": {
@@ -1040,6 +1076,19 @@
           "tableTo": "coupons",
           "columnsFrom": [
             "applied_coupon_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "orders_completed_by_user_id_fk": {
+          "name": "orders_completed_by_user_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "user",
+          "columnsFrom": [
+            "completed_by"
           ],
           "columnsTo": [
             "id"

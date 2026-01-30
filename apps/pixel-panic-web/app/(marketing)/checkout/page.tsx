@@ -23,9 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, MapPin } from "lucide-react";
 
-import { addressSchema, type AddressFormValues } from "@repo/validators";
+import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import { createOrderAction, type CheckoutFormData } from "./actions";
+import { createOrderAction } from "./actions";
 
 export default function CheckoutPage() {
   const [isLocating, setIsLocating] = React.useState(false);
@@ -33,11 +33,10 @@ export default function CheckoutPage() {
   const router = useRouter();
   const {
     items,
-    total,
     discountedTotal,
     serviceMode,
-    timeSlot,
     appliedCoupon,
+    setServiceMode,
   } = useCart();
   const { user } = useAuth();
 
@@ -45,7 +44,7 @@ export default function CheckoutPage() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = React.useState<string | null>(null);
 
-  // Redirect if no items in cart or no service mode selected
+  // Redirect if no items in cart
   React.useEffect(() => {
     if (items.length === 0) {
       router.push("/");
@@ -53,18 +52,38 @@ export default function CheckoutPage() {
     }
 
     if (!serviceMode) {
-      router.push("/checkout/service-mode");
-      return;
+      setServiceMode("Doorstep");
     }
-    // Require timeSlot for both service modes
-    if (!timeSlot) {
-      router.push("/checkout/service-mode");
-      return;
-    }
-  }, [items.length, serviceMode, router]);
+  }, [items.length, serviceMode, router, setServiceMode]);
 
-  const form = useForm<AddressFormValues>({
-    resolver: zodResolver(addressSchema),
+  const addressSchema = z.object({
+    fullName: z
+      .string()
+      .min(2, { message: "Name must be at least 2 characters." }),
+    phoneNumber: z.string().min(1, { message: "Phone number is required." }),
+    email: z.string().email({ message: "Please enter a valid email." }),
+    alternatePhoneNumber: z
+      .string()
+      .min(10, { message: "Please enter a valid 10-digit phone number." })
+      .optional()
+      .or(z.literal("")),
+    flatAndStreet: z
+      .string()
+      .min(5, { message: "Please enter a full address." }),
+    landmark: z
+      .string()
+      .min(2, { message: "Landmark must be at least 2 characters." }),
+  });
+
+  const checkoutSchema = addressSchema.extend({
+    serviceDate: z.string().min(1, { message: "Date is required" }),
+    serviceTime: z.string().min(1, { message: "Time is required" }),
+  });
+
+  type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+
+  const form = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutSchema),
     defaultValues: {
       fullName: "",
       phoneNumber: "",
@@ -72,8 +91,28 @@ export default function CheckoutPage() {
       alternatePhoneNumber: "",
       flatAndStreet: "",
       landmark: "",
+      serviceDate: "",
+      serviceTime: "",
     },
   });
+
+  const serviceDate = form.watch("serviceDate");
+
+  const todayValue = React.useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = `${now.getMonth() + 1}`.padStart(2, "0");
+    const day = `${now.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const minTimeValue = React.useMemo(() => {
+    if (!serviceDate || serviceDate !== todayValue) return "";
+    const now = new Date();
+    const hours = `${now.getHours()}`.padStart(2, "0");
+    const minutes = `${now.getMinutes()}`.padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }, [serviceDate, todayValue]);
 
   // Update form when user data is loaded
   React.useEffect(() => {
@@ -150,7 +189,45 @@ export default function CheckoutPage() {
   }
 
   // Create a custom action that includes cart data
-  const handleFormAction = async (values: AddressFormValues) => {
+  const handleFormAction = async (values: CheckoutFormValues) => {
+    const today = todayValue;
+    if (values.serviceDate < today) {
+      form.setError("serviceDate", {
+        type: "manual",
+        message: "Please select a future date",
+      });
+      return;
+    }
+    if (values.serviceDate === today) {
+      const nowTime = minTimeValue;
+      if (nowTime && values.serviceTime < nowTime) {
+        form.setError("serviceTime", {
+          type: "manual",
+          message: "Please select a future time",
+        });
+        return;
+      }
+    }
+    const formatSlotText = (dateValue: string, timeValue: string) => {
+      const [year, month, day] = dateValue.split("-").map(Number);
+      const [hour, minute] = timeValue.split(":").map(Number);
+      if (
+        [year, month, day, hour, minute].some((v) => Number.isNaN(v))
+      ) {
+        return `${dateValue} ${timeValue}`.trim();
+      }
+      const date = new Date(year, month - 1, day, hour, minute);
+      const dateText = new Intl.DateTimeFormat("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(date);
+      const timeText = new Intl.DateTimeFormat("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(date);
+      return `${dateText}, ${timeText}`;
+    };
     // Create FormData with form values and cart data
     const formData = new FormData();
 
@@ -169,10 +246,13 @@ export default function CheckoutPage() {
     // Add cart data
     formData.append("items", JSON.stringify(items));
     formData.append("total", discountedTotal.toString());
-    formData.append("serviceMode", serviceMode || "");
-    if (timeSlot) {
-      formData.append("timeSlot", timeSlot);
-    }
+    formData.append("serviceMode", serviceMode || "Doorstep");
+    formData.append("serviceDate", values.serviceDate);
+    formData.append("serviceTime", values.serviceTime);
+    formData.append(
+      "timeSlot",
+      formatSlotText(values.serviceDate, values.serviceTime)
+    );
     if (appliedCoupon) {
       formData.append(
         "appliedCoupon",
@@ -199,7 +279,7 @@ export default function CheckoutPage() {
   };
 
   // Show loading while redirecting
-  if (items.length === 0 || !serviceMode) {
+  if (items.length === 0) {
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <main className="flex-1 py-8 px-4 sm:py-12 lg:py-16">
@@ -366,7 +446,9 @@ export default function CheckoutPage() {
                     name="landmark"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Landmark</FormLabel>
+                        <FormLabel>
+                          Landmark <span className="text-red-500">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Nearby landmark"
@@ -378,6 +460,50 @@ export default function CheckoutPage() {
                       </FormItem>
                     )}
                   />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="serviceDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Service Date{" "}
+                            <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              min={todayValue}
+                              disabled={isPending}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="serviceTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Service Time{" "}
+                            <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="time"
+                              {...field}
+                              min={minTimeValue || undefined}
+                              disabled={isPending}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   {error && (
                     <Alert variant="destructive">

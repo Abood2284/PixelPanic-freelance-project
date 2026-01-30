@@ -39,6 +39,24 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Tailwind v4 font tokens -> utilities: font-display, font-sans, font-mono */
+  --font-display: var(--font-space-grotesk), "Space Grotesk", system-ui, serif;
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.admin-fonts {
+  --font-display:
+    var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+}
+
+.admin-fonts :is(h1, h2, h3, h4, h5, h6) {
+  font-family:
+    var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
 }
 
 :root {
@@ -118,6 +136,15 @@
   --pp-navy: #080357;
   --pp-slate: #64748b;
   --pp-lime: #84cc16;
+  --pp-burnt-orange: #eb5e28;
+  /* PixelPanic Brand Palette */
+  --ink-black: #0b0d0e; /* Primary text / headers */
+  --clinic-white: #f9fafb; /* Base / surfaces */
+  --signal-orange: #ff5c35; /* Primary action / urgency */
+  --pixel-cyan: #06d7f2; /* Interactive accents / links */
+  --taxi-yellow: #ffc300; /* Status / highlights */
+  --rail-grey: #e6e8eb; /* Dividers / cards */
+  --charcoal: #2b2f32; /* Secondary text / footers */
 }
 
 * {
@@ -125,7 +152,7 @@
 }
 
 body {
-  @apply bg-white antialiased;
+  @apply bg-white antialiased font-sans leading-[1.45];
   overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
@@ -138,28 +165,6 @@ body {
 .phone-reveal.animate {
   opacity: 1;
   transform: translateY(0);
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(
-    circle at var(--x, 50%) var(--y, 50%),
-    rgba(255, 255, 255, 0.1) 0%,
-    transparent 50%
-  );
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-body:hover::after {
-  opacity: 1;
 }
 
 .split-lines span {
@@ -267,7 +272,7 @@ body {
 }
 
 .testimonials-section h1 {
-  @apply uppercase text-[20.5vw] leading-[105%] tracking-[-.4vw] ml-[2vw] font-bold;
+  @apply uppercase text-[20.5vw] leading-[1.05] tracking-[-.4vw] ml-[2vw] font-bold font-display;
 }
 
 /* Section background colors for visual distinction */
@@ -301,8 +306,34 @@ body {
   color: white;
 }
 
+.section-how-it-works {
+  background: #fff;
+  color: inherit;
+}
+
 /* GSAP Utility Classes */
 @layer utilities {
+  .h1 {
+    @apply text-[64px] leading-[1.05] font-display font-bold;
+  }
+  .h2 {
+    @apply text-[48px] leading-[1.08] font-display font-semibold;
+  }
+  .h3 {
+    @apply text-[32px] leading-[1.1] font-display font-semibold;
+  }
+  .h4 {
+    @apply text-[24px] leading-[1.15] font-display font-semibold;
+  }
+  .body-lg {
+    @apply text-[18px] leading-[1.45] font-sans font-medium;
+  }
+  .body {
+    @apply text-[16px] leading-[1.45] font-sans;
+  }
+  .code {
+    @apply font-mono font-medium;
+  }
   .flex-center {
     @apply flex justify-center items-center;
   }
@@ -314,6 +345,17 @@ body {
   }
   .glass {
     @apply backdrop-blur-md bg-white/10 border border-white/20;
+  }
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
   }
 }
 
@@ -363,6 +405,65 @@ body {
 .section-brand-selector,
 .testimonials-section,
 .cta-section,
-.footer-section {
+.footer-section,
+.section-how-it-works {
   overflow-x: hidden;
+}
+
+/* --- Target Cursor ------------------------------------------------------- */
+#target-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  width: 48px;
+  height: 48px; /* outer ring size */
+  border-radius: 999px;
+  border: 2px solid var(--pp-orange, #e16036);
+  background: transparent;
+  box-shadow: 0 0 0 2px rgba(225, 96, 54, 0.08) inset; /* soft inner halo for depth */
+  pointer-events: none; /* never block clicks */
+  transform: translate(-50%, -50%)
+    translate3d(var(--x, -100px), var(--y, -100px), 0);
+  will-change: transform;
+  transition:
+    border-color 120ms ease,
+    opacity 150ms ease;
+  /* New tuning knobs */
+  --gap: 6px; /* space left between fill and ring */
+  --scale: 0.22; /* default dot size (as a fraction of full) */
+  --fill: var(--pp-orange, #e16036); /* inner fill color (default orange) */
+}
+
+/* inner dot centered (sits exactly on pointer tip) */
+#target-cursor::after {
+  content: "";
+  position: absolute;
+  inset: var(--gap); /* ensures a little space remains at all sizes */
+  border-radius: 999px;
+  background: var(--fill);
+  transform-origin: 50% 50%;
+  transform: scale(var(--scale));
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 120ms ease;
+}
+
+/* Flip to orange when hovering interactive elements */
+#target-cursor.is-clickable {
+  --ring: var(--pp-orange, #e16036);
+  --fill: var(--pp-orange, #e16036);
+  --scale: 1; /* grow to fill the inner circle (leaves the gap) */
+}
+
+/* Sensible defaults for UX */
+@media (hover: none), (pointer: coarse) {
+  #target-cursor {
+    display: none;
+  }
+} /* hide on touch */
+@media (prefers-reduced-motion: reduce) {
+  #target-cursor {
+    transition: none;
+  }
 }

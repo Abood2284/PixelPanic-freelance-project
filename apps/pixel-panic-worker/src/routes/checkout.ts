@@ -455,6 +455,36 @@ checkoutRoutes.post("/create-order", async (c) => {
     // Close the pool after transaction
     await pool.end();
 
+    try {
+      // Keep the alert simple/“dummy” so it passes while templates are being sorted
+      const alertText = [
+        "PIXEL PANIC — New order received",
+        `Order: ${newOrder.orderNumber}`,
+        // You can comment out customer details for now to avoid template mismatch
+        // `Customer: ${customerInfo.fullName} (${customerInfo.phoneNumber})`,
+        // `Mode: ${normalizedServiceMode.toUpperCase()} @ ${serviceDetails.timeSlot}`,
+        // `Total: ₹${Number(total).toFixed(2)} Items: ${items.length}`,
+      ].join(" | ");
+
+      // Fire-and-forget so checkout response is never delayed
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const { sendSms } = await import("../utils/messagecentral");
+            await sendSms(c.env as any, {
+              message: alertText,
+              forceDefault: true,
+            });
+          } catch (err) {
+            // Log but never fail the order
+            console.error("Order alert SMS error:", err);
+          }
+        })()
+      );
+    } catch (e) {
+      console.error("Failed to schedule order alert SMS:", e);
+    }
+
     if (!newOrder) {
       throw new HTTPException(500, {
         message: "Failed to save order details.",

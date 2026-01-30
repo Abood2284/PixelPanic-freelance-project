@@ -8,6 +8,9 @@ import BrandSelector from "@/components/features/landing/BrandSelector";
 import { ProcessStepper } from "@/components/features/landing/process-stepper";
 import Footer from "@/components/shared/Footer";
 import dynamic from "next/dynamic";
+import { HeroSectionNew } from "@/components/features/landing/HeroSectionNew";
+import { CredibilitySection } from "@/components/features/landing/CredibilitySection";
+import HowItWorks from "@/components/features/landing/HowItWorks";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -16,33 +19,20 @@ const UGCScroller = dynamic(
   { ssr: false }
 );
 
-// Reuse your existing assets (works even if /public/videos exists only in prod)
-const TESTIMONIAL_VIDEOS = [
-  {
-    src: "/videos/pixel-panic-video-1.mp4",
-    poster: "/images/testimonial-3.png",
-  },
-  {
-    src: "/videos/pixel-panic-video-2.mp4",
-    poster: "/images/testimonial-1.png",
-  },
-  {
-    src: "/videos/pixel-panic-video-3.mp4",
-    poster: "/images/testimonial-2.png",
-  },
-];
-
 export default function MarketingHomePage() {
   return (
     <main>
       <section className="section-hero h-screen">
+        {/* <HeroSectionNew /> */}
         <HeroSection />
       </section>
       <section className="section-brand-selector">
         <BrandSelector />
       </section>
       <UGCScroller />
-      <ProcessStepper />
+      <HowItWorks />
+      {/* <ProcessStepper /> */}
+      <CredibilitySection />
       <Footer />
     </main>
   );

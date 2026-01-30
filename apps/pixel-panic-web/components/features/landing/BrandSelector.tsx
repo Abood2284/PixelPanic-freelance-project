@@ -131,7 +131,7 @@ export default function BrandSelector() {
     <section
       id="brand-selector"
       ref={sectionRef}
-      className="relative w-full h-screen flex flex-col justify-center items-center px-6 sm:px-8 py-12 bg-white overflow-hidden"
+      className="relative w-full h-screen flex flex-col justify-center items-center px-6 sm:px-8 py-12 overflow-hidden"
     >
       {/* Background Elements */}
       <div className="absolute inset-0 pointer-events-none">

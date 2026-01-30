@@ -2,12 +2,10 @@
 "use client";
 
 import { ViewCanvas } from "@/components/canvas/View-Canvas";
-import { yeagerOne, ptSerif } from "@/public/fonts/fonts";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { Group } from "three";
-import Image from "next/image";
 
 const SPINS_ON_CHANGE = 1;
 
@@ -15,17 +13,17 @@ function HeroSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const iphoneRef = useRef<Group>(null);
   const [isIphoneLoaded, setIsIphoneLoaded] = useState(false);
-  const hasSpunRef = useRef(false);
-  const [show3D, setShow3D] = useState(false);
-
+  const modelHolderRef = useRef<HTMLDivElement>(null);
+  const [modelInView, setModelInView] = useState(false);
   useEffect(() => {
-    // Defer loading 3D until the browser is idle or 400ms fallback
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(() => setShow3D(true));
-    } else {
-      setTimeout(() => setShow3D(true), 400);
-    }
+    const io = new IntersectionObserver(
+      ([e]) => setModelInView(e.isIntersecting),
+      { rootMargin: "200px" }
+    );
+    if (modelHolderRef.current) io.observe(modelHolderRef.current);
+    return () => io.disconnect();
   }, []);
+  const hasSpunRef = useRef(false);
 
   const handleIphoneLoaded = useCallback(() => {
     if (iphoneRef.current) iphoneRef.current.rotation.y = 0;
@@ -91,40 +89,10 @@ function HeroSection() {
       </div>
 
       {/* 3D Model Container */}
-      <div className="relative h-[56vh] w-full sm:h-100">
-        {/* Show WebP while 3D is not mounted */}
-        {!show3D && (
-          <Image
-            src="https://pub-e75db92e1a5e4c81aa5e94b6ad9d0a98.r2.dev/models/iphone-16-final.webp"
-            alt="3D iPhone Hero"
-            fill // or use width/height if you prefer
-            unoptimized
-            priority // Ensures it's LCP!
-            style={{
-              objectFit: "contain", // Adjust based on design
-              zIndex: 2,
-              transition: "opacity 0.5s",
-              opacity: show3D ? 0 : 1,
-              pointerEvents: "none",
-            }}
-          />
+      <div className="relative h-[56vh] w-full sm:h-100" ref={modelHolderRef}>
+        {modelInView && (
+          <ViewCanvas modelRef={iphoneRef} onLoaded={handleIphoneLoaded} />
         )}
-        {/* Lazy-load the 3D scene only after idle */}
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            opacity: show3D ? 1 : 0,
-            transition: "opacity 0.7s cubic-bezier(0.4,0,0.2,1)",
-            position: "absolute", // stack on top for fade
-            top: 0,
-            left: 0,
-          }}
-        >
-          {show3D && (
-            <ViewCanvas modelRef={iphoneRef} onLoaded={handleIphoneLoaded} />
-          )}
-        </div>
       </div>
 
       {/* Hero Text Content */}
@@ -141,7 +109,7 @@ function HeroSection() {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-base sm:text-lg text-black/70 font-medium mb-6">
+        <p className="text-base sm:text-lg text-black/70 font-medium mb-8">
           Select Your Brand Below.{" "}
           {/* <span className="font-semibold text-orange-600">
             Bilkul no tension

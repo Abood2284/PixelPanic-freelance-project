@@ -27,6 +27,28 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Optimize for Cloudflare Workers
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@tabler/icons-react",
+      "react-icons",
+      "framer-motion",
+      "@radix-ui/react-accordion",
+      "@radix-ui/react-checkbox",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-label",
+      "@radix-ui/react-radio-group",
+      "@radix-ui/react-select",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-tooltip",
+    ],
+  },
+  // Disable source maps in production
+  productionBrowserSourceMaps: false,
+  // Optimize output
+  output: "standalone",
   /* config options here */
   async rewrites() {
     const rules = [] as { source: string; destination: string }[];

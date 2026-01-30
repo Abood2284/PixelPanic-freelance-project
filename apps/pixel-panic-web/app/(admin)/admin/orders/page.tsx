@@ -26,7 +26,7 @@ export default async function OrdersPage() {
         All Orders
       </h1>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-neutral-900">
+      <div className="md:overflow-hidden md:rounded-lg md:border md:border-slate-200 md:bg-white md:shadow-sm md:dark:border-slate-800 md:dark:bg-neutral-900">
         <Suspense fallback={<p className="p-4">Loading orders...</p>}>
           <OrdersTable orders={orders} />
         </Suspense>

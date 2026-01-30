@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BadgeCheck, Clock, MessageCircle } from "lucide-react";
+import { formatOrderDate, formatOrderTime } from "@/lib/utils";
 
 interface ContactMessage {
   id: number;
@@ -275,10 +276,10 @@ export default function ContactMessagesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {new Date(message.createdAt).toLocaleDateString()}
+                            {formatOrderDate(message.createdAt)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(message.createdAt).toLocaleTimeString()}
+                            {formatOrderTime(message.createdAt)}
                           </div>
                         </TableCell>
                         <TableCell>

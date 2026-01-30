@@ -168,7 +168,7 @@ function cartReducer(state: CartState, action: any): CartState {
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, {
     items: [],
-    serviceMode: null,
+    serviceMode: "Doorstep",
     timeSlot: null,
     doorstepTimeSlot: null,
     carryInTimeSlot: null,

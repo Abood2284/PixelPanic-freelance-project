@@ -1,62 +1,46 @@
 "use client";
 
-import React, {
-  useLayoutEffect,
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-} from "react";
+import React, { useLayoutEffect, useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
+ScrollTrigger.normalizeScroll(true);
 
 type Vid = { src: string; poster?: string };
 type Props = { videos?: Vid[] };
-
-type HlsConstructor = typeof import("hls.js") extends { default: infer T }
-  ? T extends new (...args: any[]) => any
-    ? T
-    : never
-  : never;
-type HlsInstance = HlsConstructor extends new (...args: any[]) => infer R
-  ? R
-  : never;
-
-const HLS_MIME_TYPE = "application/vnd.apple.mpegurl";
 
 const DEFAULT_VIDEOS: Vid[] = [
   {
     poster:
       "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/fcdcca5d3be3f290c841d2255aa9795b/thumbnails/thumbnail.jpg?height=720",
-    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/fcdcca5d3be3f290c841d2255aa9795b/manifest/video.m3u8",
+    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/fcdcca5d3be3f290c841d2255aa9795b/downloads/default.mp4",
   },
   {
     poster:
       "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/fcdcca5d3be3f290c841d2255aa9795b/thumbnails/thumbnail.jpg?height=720",
-    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/fcdcca5d3be3f290c841d2255aa9795b/manifest/video.m3u8",
+    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/fcdcca5d3be3f290c841d2255aa9795b/downloads/default.mp4",
   },
   {
     poster:
       "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/051d60cfdb9fb3159db45644004217c5/thumbnails/thumbnail.jpg?height=720",
-    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/051d60cfdb9fb3159db45644004217c5/manifest/video.m3u8",
+    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/051d60cfdb9fb3159db45644004217c5/downloads/default.mp4",
   },
   {
     poster:
       "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/051d60cfdb9fb3159db45644004217c5/thumbnails/thumbnail.jpg?height=720",
-    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/051d60cfdb9fb3159db45644004217c5/manifest/video.m3u8",
+    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/051d60cfdb9fb3159db45644004217c5/downloads/default.mp4",
   },
   {
     poster:
       "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/d1cf2c712fbbab4e14963d213e8c91e7/thumbnails/thumbnail.jpg?height=720",
-    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/d1cf2c712fbbab4e14963d213e8c91e7/manifest/video.m3u8",
+    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/d1cf2c712fbbab4e14963d213e8c91e7/downloads/default.mp4",
   },
   {
     poster:
       "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/d1cf2c712fbbab4e14963d213e8c91e7/thumbnails/thumbnail.jpg?height=720",
-    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/d1cf2c712fbbab4e14963d213e8c91e7/manifest/video.m3u8",
+    src: "https://customer-f8j7l772wbsnmaey.cloudflarestream.com/d1cf2c712fbbab4e14963d213e8c91e7/downloads/default.mp4",
   },
 ];
 
@@ -67,9 +51,6 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
   const [isDesktopHoverable, setIsDesktopHoverable] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const cardVideoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const cardHlsRefs = useRef<(HlsInstance | null)[]>([]);
-  const popupHlsRef = useRef<HlsInstance | null>(null);
-  const hlsConstructorRef = useRef<HlsConstructor | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia(
@@ -107,7 +88,7 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
     if (audioUnlocked) v.removeAttribute("muted");
     else v.setAttribute("muted", "");
 
-    if (v.readyState < 2 && v.dataset.usesHls !== "true") v.load();
+    if (v.readyState < 2) v.load();
     v.play().catch(() => {
       // If any policy still blocks, it'll be because of site conditions; ignore.
     });
@@ -144,83 +125,32 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
     setPopupOpen(true);
   };
 
-  const ensureHlsConstructor =
-    useCallback(async (): Promise<HlsConstructor | null> => {
-      if (typeof window === "undefined") return null;
-      if (hlsConstructorRef.current) return hlsConstructorRef.current;
-      const mod = (await import("hls.js")) as { default: HlsConstructor };
-      hlsConstructorRef.current = mod.default;
-      return mod.default;
-    }, []);
-
   useEffect(() => {
     if (!popupOpen || !popupSrc) return;
-    const videoEl = popupVideoRef.current;
-    if (!videoEl) return;
-
-    let canceled = false;
-    let removeCanPlay: (() => void) | null = null;
-
-    const setup = async () => {
-      const ctor = await ensureHlsConstructor();
-      if (canceled) return;
-
-      popupHlsRef.current?.destroy();
-      popupHlsRef.current = null;
-
-      videoEl.pause();
-      videoEl.muted = false;
-      videoEl.removeAttribute("muted");
-
-      const canPlayNative = videoEl.canPlayType(HLS_MIME_TYPE);
-
-      if (canPlayNative) {
-        videoEl.src = popupSrc;
-        videoEl.dataset.usesHls = "false";
-      } else if (ctor && ctor.isSupported()) {
-        const hlsInstance = new ctor();
-        hlsInstance.loadSource(popupSrc);
-        hlsInstance.attachMedia(videoEl);
-        popupHlsRef.current = hlsInstance;
-        videoEl.dataset.usesHls = "true";
-      } else {
-        videoEl.src = popupSrc;
-        videoEl.dataset.usesHls = "false";
-      }
-
-      const playNow = () =>
-        videoEl.play().catch(() => {
-          /* user can tap play */
-        });
-
-      if (videoEl.readyState >= 2) {
+    const v = popupVideoRef.current;
+    if (!v) return;
+    v.pause();
+    v.muted = false;
+    v.removeAttribute("muted");
+    v.src = popupSrc;
+    v.load();
+    const playNow = () =>
+      v.play().catch(() => {
+        /* user can tap play */
+      });
+    if (v.readyState >= 2) playNow();
+    else {
+      const onCanPlay = () => {
+        v.removeEventListener("canplay", onCanPlay);
         playNow();
-      } else {
-        const onCanPlay = () => {
-          videoEl.removeEventListener("canplay", onCanPlay);
-          playNow();
-        };
-        videoEl.addEventListener("canplay", onCanPlay);
-        removeCanPlay = () => videoEl.removeEventListener("canplay", onCanPlay);
-      }
-    };
-
-    setup();
-
-    return () => {
-      canceled = true;
-      removeCanPlay?.();
-      popupHlsRef.current?.destroy();
-      popupHlsRef.current = null;
-    };
-  }, [ensureHlsConstructor, popupOpen, popupSrc]);
+      };
+      v.addEventListener("canplay", onCanPlay);
+      return () => v.removeEventListener("canplay", onCanPlay);
+    }
+  }, [popupOpen, popupSrc]);
 
   const closePlayer = () => {
     const v = popupVideoRef.current;
-    if (popupHlsRef.current) {
-      popupHlsRef.current.destroy();
-      popupHlsRef.current = null;
-    }
     if (v) {
       v.pause();
       v.currentTime = 0;
@@ -247,8 +177,8 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
       const mm = gsap.matchMedia();
       const cards = gsap.utils.toArray<HTMLDivElement>(".ugc-item");
 
-      const baseEnd = (isMobileViewport: boolean) =>
-        window.innerHeight * (isMobileViewport ? 4 : 3);
+      const baseEnd = () =>
+        window.innerHeight * (window.innerWidth < 769 ? 4.0 : 3);
 
       gsap.set(cards, {
         yPercent: 150,
@@ -264,30 +194,15 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
             isDesktop: boolean;
           };
 
-          const totalCards = cards.length;
-          const snapIncrement = totalCards > 1 ? 1 / (totalCards - 1) : 1;
-          const snapToCard = (progress: number) => {
-            const snapped =
-              Math.round(progress / snapIncrement) * snapIncrement;
-            return Math.max(0, Math.min(1, snapped));
-          };
-
           const tl = gsap.timeline({
             defaults: { ease: "power2.out" },
             scrollTrigger: {
               trigger: sectionRef.current,
               start: "top top",
-              end: () => `+=${baseEnd(isMobile)}`,
+              end: () => `+=${Math.round(baseEnd() * (isMobile ? 1.6 : 1))}`,
               pin: true, // keep pinned for your cards animation
-              scrub: isMobile ? 0.7 : 1,
+              scrub: isMobile ? 1.8 : 1,
               anticipatePin: 1,
-              snap: isMobile
-                ? {
-                    snapTo: snapToCard,
-                    duration: { min: 0.1, max: 0.25 },
-                    ease: "power1.out",
-                  }
-                : undefined,
             },
           });
 
@@ -347,50 +262,6 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
   }, []);
   // ===================================
 
-  useEffect(() => {
-    let canceled = false;
-
-    const setupCardStreams = async () => {
-      const ctor = await ensureHlsConstructor();
-      if (canceled) return;
-
-      cardVideoRefs.current.forEach((videoEl, idx) => {
-        const src = videos[idx]?.src;
-
-        if (!videoEl || !src) {
-          cardHlsRefs.current[idx]?.destroy();
-          cardHlsRefs.current[idx] = null;
-          return;
-        }
-
-        const canPlayNative = videoEl.canPlayType(HLS_MIME_TYPE);
-        const canUseHls = !canPlayNative && ctor && ctor.isSupported();
-
-        if (canUseHls) {
-          cardHlsRefs.current[idx]?.destroy();
-          const hlsInstance = new ctor();
-          hlsInstance.loadSource(src);
-          hlsInstance.attachMedia(videoEl);
-          cardHlsRefs.current[idx] = hlsInstance;
-          videoEl.dataset.usesHls = "true";
-        } else {
-          cardHlsRefs.current[idx]?.destroy();
-          cardHlsRefs.current[idx] = null;
-          videoEl.src = src;
-          videoEl.dataset.usesHls = "false";
-        }
-      });
-    };
-
-    setupCardStreams();
-
-    return () => {
-      canceled = true;
-      cardHlsRefs.current.forEach((instance) => instance?.destroy());
-      cardHlsRefs.current = [];
-    };
-  }, [ensureHlsConstructor, videos]);
-
   return (
     <>
       <section ref={sectionRef} className="ugc-section ugc-scope">
@@ -421,18 +292,15 @@ export default function UGCScroller({ videos = DEFAULT_VIDEOS }: Props) {
                 <video
                   ref={(el) => {
                     cardVideoRefs.current[i] = el;
-                    if (!el && cardHlsRefs.current[i]) {
-                      cardHlsRefs.current[i]?.destroy();
-                      cardHlsRefs.current[i] = null;
-                    }
                   }}
                   className="video-thumbnail"
                   playsInline
                   preload="metadata"
                   poster={v.poster}
                   muted // ensures first-hover autoplay works
-                  data-stream-src={v.src}
-                />
+                >
+                  <source src={v.src} type="video/mp4" />
+                </video>
               </div>
             ))}
           </div>
