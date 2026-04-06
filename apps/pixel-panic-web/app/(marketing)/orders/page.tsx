@@ -56,8 +56,8 @@ function getStatusBadgeVariant(status: string) {
   }
 }
 
-const CONSUMER_SUPPORT_PHONE_DISPLAY = "+91 7738514894";
-const CONSUMER_SUPPORT_PHONE_TEL = "tel:+917738514894";
+const CONSUMER_SUPPORT_PHONE_DISPLAY = "9326108547";
+const CONSUMER_SUPPORT_PHONE_TEL = "tel:+919326108547";
 
 // Helper function to format date - uses UTC parsing and IST formatting for consistency
 function formatDate(dateString: string) {
