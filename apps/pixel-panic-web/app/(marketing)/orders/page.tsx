@@ -56,6 +56,9 @@ function getStatusBadgeVariant(status: string) {
   }
 }
 
+const CONSUMER_SUPPORT_PHONE_DISPLAY = "+91 7738514894";
+const CONSUMER_SUPPORT_PHONE_TEL = "tel:+917738514894";
+
 // Helper function to format date - uses UTC parsing and IST formatting for consistency
 function formatDate(dateString: string) {
   return formatOrderDateTime(dateString);
@@ -260,6 +263,20 @@ export default function OrderHistoryPage() {
                       <span className="text-xl font-bold text-pp-navy">
                         ₹{Number(order.totalAmount).toFixed(2)}
                       </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-pp-orange/25 bg-orange-50/60 px-4 py-3 text-sm">
+                      <Phone
+                        className="h-4 w-4 shrink-0 text-pp-orange"
+                        aria-hidden
+                      />
+                      <span className="text-gray-700">Call us:</span>
+                      <a
+                        href={CONSUMER_SUPPORT_PHONE_TEL}
+                        className="font-semibold text-pp-navy underline-offset-2 hover:underline"
+                      >
+                        {CONSUMER_SUPPORT_PHONE_DISPLAY}
+                      </a>
                     </div>
 
                     {/* Action Buttons */}
